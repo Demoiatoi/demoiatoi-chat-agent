@@ -269,6 +269,30 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 
 <script>
 // ═══════════════════════════════════════════════════════════════
+//  SUPABASE — para recibir respuestas de Andrea en tiempo real
+// ═══════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://tjsvgvcfddwbtnadxbhh.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3ZndmNmZGR3YnRuYWR4YmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTMzMTYsImV4cCI6MjA5MzkyOTMxNn0.GtAOjajdcU1A_bSCGKuE3EyVKe5MTCk2dAytyu2s41g'
+
+async function checkAndreaMessages() {
+  if (!window._convId) return
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&is_from_andrea=eq.true&order=created_at.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    )
+    const data = await res.json()
+    if (data && data.length > 0) {
+      const last = data[0]
+      if (last.id !== window._lastAndreaId) {
+        window._lastAndreaId = last.id
+        renderBubble('agent', '👩‍💼 Andrea: ' + last.content)
+      }
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════
 let agentConfig = {
@@ -670,7 +694,10 @@ function contactAndreaEmail() {
   window.open('mailto:contacto@demoiatoi.es?subject=Quiero%20hablar%20con%20Andrea&body=Hola%20Andrea%2C%20me%20pongo%20en%20contacto%20contigo%20desde%20el%20chat%20de%20la%20tienda.', '_blank');
 }
 
-window.addEventListener("DOMContentLoaded", initChat);
+window.addEventListener("DOMContentLoaded", () => {
+  initChat()
+  setInterval(checkAndreaMessages, 5000)
+});
 </script>
 </body>
 </html>
