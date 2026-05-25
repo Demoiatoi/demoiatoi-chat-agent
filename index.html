@@ -695,6 +695,8 @@ function contactAndreaEmail() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  // Recuperar conversación anterior si existe
+  try { window._convId = localStorage.getItem('dmat_conv_id') || null; } catch(e) {}
   initChat()
   setInterval(checkAndreaMessages, 5000)
 });
