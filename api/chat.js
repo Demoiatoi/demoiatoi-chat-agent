@@ -1,6 +1,6 @@
-import supabase from './supabase.js'
+const { createClient } = require('@supabase/supabase-js')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -8,10 +8,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end()
 
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+  )
+
   try {
     const { messages, system, conversation_id } = req.body
 
-    // Guardar mensaje del cliente en Supabase
     let convId = conversation_id
     if (!convId) {
       const { data } = await supabase
@@ -29,7 +33,6 @@ export default async function handler(req, res) {
       content: lastUserMsg.content
     })
 
-    // Llamar a Claude
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -48,14 +51,12 @@ export default async function handler(req, res) {
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
-    // Guardar respuesta del agente en Supabase
     await supabase.from('chat_messages').insert({
       conversation_id: convId,
       role: 'assistant',
       content: assistantText
     })
 
-    // Si el cliente pide hablar con Andrea o tiene incidencia → marcar alerta
     const needsAttention =
       lastUserMsg.content.toLowerCase().includes('andrea') ||
       lastUserMsg.content.toLowerCase().includes('incidencia') ||
