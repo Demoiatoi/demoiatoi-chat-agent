@@ -908,7 +908,10 @@ function initChat() {
     showChat();
     return;
   }
-  // Si no, mostrar email gate
+  // Mostrar email gate
+  document.getElementById('emailGate').style.display = 'flex';
+  document.getElementById('messagesArea').style.display = 'none';
+  document.getElementById('inputArea').style.display = 'none';
 }
 
 function startChat() {
