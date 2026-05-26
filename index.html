@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- saved from url=(0070)file:///C:/Users/Andrea/Downloads/agente-ventas-demoiatoi-FINAL_3.html -->
-<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="es">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agente de Ventas – De Moi à Toi Regalos</title>
-<link href="./index_files/css2" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -286,7 +286,8 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     <div class="gate-step active" id="gateStep1">
       <div class="gate-logo">🎁</div>
       <div class="gate-title">¡Hola! Para poder ayudarte mejor y hacer seguimiento de tu consulta, necesito tu email 😊</div>
-      <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com" onkeydown="if(event.key===&#39;Enter&#39;) goToStep2()">
+      <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com"
+        onkeydown="if(event.key==='Enter') goToStep2()">
       <button class="email-submit" onclick="goToStep2()">Continuar →</button>
       <div class="email-error" id="emailError">Por favor introduce un email válido</div>
     </div>
@@ -296,12 +297,12 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
       <div class="gate-title">¿Cómo nos conociste?</div>
       <div class="gate-subtitle">Nos ayuda a saber dónde encontrarte 😊</div>
       <div class="source-options">
-        <button class="source-btn" onclick="selectSource(this,&#39;Instagram&#39;)">📸 Instagram</button>
-        <button class="source-btn" onclick="selectSource(this,&#39;Google&#39;)">🔍 Google</button>
-        <button class="source-btn" onclick="selectSource(this,&#39;Recomendación&#39;)">💬 Me lo recomendaron</button>
-        <button class="source-btn" onclick="selectSource(this,&#39;Ya era clienta&#39;)">💛 Ya era clienta</button>
-        <button class="source-btn" onclick="selectSource(this,&#39;Pinterest&#39;)">📌 Pinterest</button>
-        <button class="source-btn" onclick="selectSource(this,&#39;Otro&#39;)">✨ Otro</button>
+        <button class="source-btn" onclick="selectSource(this,'Instagram')">📸 Instagram</button>
+        <button class="source-btn" onclick="selectSource(this,'Google')">🔍 Google</button>
+        <button class="source-btn" onclick="selectSource(this,'Recomendación')">💬 Me lo recomendaron</button>
+        <button class="source-btn" onclick="selectSource(this,'Ya era clienta')">💛 Ya era clienta</button>
+        <button class="source-btn" onclick="selectSource(this,'Pinterest')">📌 Pinterest</button>
+        <button class="source-btn" onclick="selectSource(this,'Otro')">✨ Otro</button>
       </div>
       <button class="email-submit" id="sourceSubmit" onclick="submitSource()" style="opacity:.5;pointer-events:none">Empezar a chatear →</button>
     </div>
@@ -329,10 +330,11 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="messages-area" id="messagesArea" style="display:none"></div>
   <div class="input-area" id="inputArea" style="display:none">
     <div class="input-row">
-      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
       <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Enviar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
     </div>
@@ -397,7 +399,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     accentColor: "#e8837a"
   };
 </script>
-<script src="file:///C:/Users/Andrea/Downloads/TU-HOSTING/dmat-agent.js" defer=""></script></div>
+<script src="TU-HOSTING/dmat-agent.js" defer></script></div>
   <button class="copy-btn" id="copyBtn" onclick="copyEmbed()">📋 Copiar código</button>
 </div>
 
@@ -434,7 +436,8 @@ function renderAndreaBubble(text) {
     <div class="bubble-avatar" style="background:linear-gradient(135deg,#fde8e6,#e8837a)">👩‍💼</div>
     <div>
       <div style="font-size:.65rem;color:var(--warm-gray);margin-bottom:3px">Andrea</div>
-      <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.split('\n').join('<br>')}</div>
+      <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.replace(/
+/g,'<br>')}</div>
       <div class="bubble-time">${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>
     </div>`
   area.appendChild(row)
@@ -646,11 +649,20 @@ En esos casos di: "Para eso necesito que hable con Andrea directamente — ella 
 
 Para todo lo demás de personalización estándar, ayuda tú misma con toda la información del catálogo.
 
+## PACKS DE REGALO CON VARIOS ARTÍCULOS
+Si un cliente quiere hacer un pack combinando varios productos de la tienda, no digas que no es posible. Explica que puede añadir cada producto por separado al carrito y en el campo "Notas del pedido" escribir: "Pack regalo: empaquetar juntos por favor". Nuestro equipo lo preparará junto con un packaging especial. Es un servicio que ofrecemos con mucho gusto.
+
+## CUANDO NO SABES ALGO
+Si te preguntan algo que no sabes o no tienes información suficiente para responder con seguridad, NO inventes. Di exactamente: "Espera un momento, voy a consultarlo con Andrea para darte la información correcta 🙏" y nada más. Esto activará una alerta para que Andrea responda directamente.
+
+## SI ANDREA ENTRA EN LA CONVERSACIÓN
+Cuando Andrea se una al chat, debes retirarte educadamente. Di: "Os dejo con Andrea, que os atenderá directamente 😊 Si me necesitáis de nuevo, estoy aquí." Y no respondas más en esa conversación hasta que Andrea te ceda el turno escribiendo "Sofía, continúa".
+
 ## REGLAS IMPORTANTES
 - NUNCA inventes productos o precios que no estén en el catálogo
 - NUNCA confirmes fechas de entrega — siempre deriva a Andrea
 - NUNCA gestiones cambios de diseño — siempre deriva a Andrea
-- Si no sabes algo, dirige al cliente a contacto@demoiatoi.es
+- Si no sabes algo, di que vas a consultar — NO inventes
 - Responde siempre en español
 - Tus respuestas son concisas (3-5 frases) salvo que el cliente pida más detalle
 - URL de producto siempre: https://demoiatoi.com/products/[handle]`;
@@ -720,7 +732,11 @@ function renderQuickReplies(replies) {
     const btn = document.createElement("button");
     btn.className = "qr-btn";
     btn.textContent = r;
-    btn.onclick = () => { wrap.remove(); sendUserMessage(r); };
+    btn.onclick = () => {
+      wrap.remove();
+      if (r === '💬 Hablar con Andrea') { showAndreaModal(); return; }
+      sendUserMessage(r);
+    };
     wrap.appendChild(btn);
   });
   area.appendChild(wrap);
@@ -745,7 +761,7 @@ async function callAPI(userMsg) {
   conversationHistory.push({role:"user",content:userMsg});
   const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json","x-api-key":"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","anthropic-version":"2023-06-01"},
     body: JSON.stringify({
       model:"claude-sonnet-4-6",
       max_tokens:1000,
@@ -758,13 +774,6 @@ async function callAPI(userMsg) {
   });
   if (!res.ok) throw new Error(res.status);
   const data = await res.json();
-  if (data.conversation_id) {
-  window._convId = data.conversation_id;
-  try {
-    sessionStorage.setItem('dmat_conv_id', data.conversation_id);
-    document.cookie = `dmat_conv=${data.conversation_id};max-age=86400;path=/`;
-  } catch(e) {}
-}
   const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
   conversationHistory.push({role:"assistant",content:text});
   return text;
@@ -837,7 +846,6 @@ function goToStep2() {
   window._customerEmail = email;
   document.getElementById('gateStep1').classList.remove('active');
   document.getElementById('gateStep2').classList.add('active');
-  console.log('email guardado:', window._customerEmail);
 }
 
 function selectSource(btn, source) {
@@ -915,22 +923,16 @@ function initChat() {
     showChat();
     return;
   }
-  // Mostrar email gate
-  document.getElementById('emailGate').style.display = 'flex';
-  document.getElementById('messagesArea').style.display = 'none';
-  document.getElementById('inputArea').style.display = 'none';
+  // Si no, mostrar email gate
 }
 
 function startChat() {
   renderBubble("agent", `¡Hola! 👋 Soy ${agentConfig.name}, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? Cuéntame y te ayudo a encontrar el detalle perfecto 🎁`);
   renderQuickReplies([
-    "🎁 Busco detalles para boda",
-    "💒 Tengo una comunión",
-    "👶 Es para un bautizo",
-    "🍎 Regalo para la profe",
-    "💡 Regalos para padrinos",
+    "🎁 Busco un regalo o detalle",
     "📦 Estado de mi pedido",
-    "⚠️ Tengo una incidencia"
+    "⚠️ Tengo una incidencia",
+    "💬 Hablar con Andrea"
   ]);
 }
 
@@ -963,6 +965,5 @@ window.addEventListener("DOMContentLoaded", () => {
   setInterval(checkAndreaMessages, 5000)
 });
 </script>
-
-
-</body></html>
+</body>
+</html>
