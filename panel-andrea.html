@@ -499,21 +499,21 @@ async function sendSugerencia() {
   document.getElementById('andreaSendBtn').disabled = true
   input.value = ''; input.style.height = ''
 
-  // Llamar al proxy con la sugerencia como contexto del sistema
   try {
-    const res = await fetch('https://demoiatoi-chat-agent.vercel.app/api/chat', {
+    await fetch('https://demoiatoi-chat-agent.vercel.app/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conversation_id: currentConvId,
-        messages: [{ role: 'user', content: '[SUGERENCIA INTERNA DE ANDREA — no mencionar]: ' + text }],
-        system: 'Eres Sofía, la asistente de De Moi à Toi. Andrea te ha dado esta información para que la uses en tu respuesta al cliente de forma natural, sin mencionar que viene de Andrea. Responde de forma cálida y natural como si lo supieras tú.',
-        is_suggestion: true
+        is_suggestion: true,
+        suggestion_text: text,
+        messages: [],
+        system: ''
       })
     })
     await loadMessages(currentConvId)
     await loadConversations()
-    showToast('💡 Sugerencia enviada a Sofía')
+    showToast('💡 Sugerencia enviada — Sofía responderá al cliente')
   } catch(e) {
     showToast('❌ Error al enviar sugerencia')
   }
