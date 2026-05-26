@@ -1,11 +1,11 @@
 const { createClient } = require('@supabase/supabase-js')
 
+// Inicialización única de Supabase en el entorno seguro de Vercel
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 )
 
-// Phrases that indicate the agent is uncertain
 const DOUBT_SIGNALS = [
   'no estoy segura', 'no lo sé', 'no sé con certeza', 'debería consultarlo',
   'no tengo esa información', 'no puedo confirmar', 'te recomiendo contactar',
@@ -17,6 +17,10 @@ function detectsDoubt(text) {
   const lower = text.toLowerCase()
   return DOUBT_SIGNALS.some(s => lower.includes(s))
 }
+
+// Nota: Aquí deberías importar o pegar tu función buildSystemPrompt() 
+// y el CATALOG de productos para que el backend construya el prompt dinámicamente,
+// evitando que el cliente pueda manipular las reglas del negocio.
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -30,7 +34,7 @@ module.exports = async function handler(req, res) {
     const {
       messages, system, conversation_id, customer_email, customer_source,
       is_suggestion, suggestion_text, is_contact_request, contact_channel,
-      andrea_reply_to_doubt, doubt_message_id
+      andrea_reply_to_doubt
     } = req.body
 
     let convId = conversation_id
@@ -70,7 +74,6 @@ module.exports = async function handler(req, res) {
     }
 
     // ── MODO CONTACTO DIRECTO ──
-    // Cliente pide hablar con Andrea directamente
     if (is_contact_request && convId) {
       await supabase.from('chat_conversations').update({
         needs_attention: true,
@@ -83,9 +86,7 @@ module.exports = async function handler(req, res) {
     }
 
     // ── RESPUESTA DE ANDREA A UNA DUDA ──
-    // Andrea responde la duda → guardar como conocimiento
     if (andrea_reply_to_doubt && suggestion_text && convId) {
-      // Save as learned knowledge (is_suggestion_private so client never sees it)
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
@@ -93,7 +94,6 @@ module.exports = async function handler(req, res) {
         is_from_andrea: false,
         is_suggestion_private: true
       })
-      // Clear the clarification flag
       await supabase.from('chat_conversations').update({
         needs_attention: false,
         needs_clarification: false,
@@ -101,8 +101,6 @@ module.exports = async function handler(req, res) {
         status: 'active',
         updated_at: new Date().toISOString()
       }).eq('id', convId)
-      // Now re-run the agent with this new knowledge so it replies to client
-      // Fall through to normal mode with knowledge injected
     }
 
     // ── MODO SUGERENCIA ──
@@ -118,18 +116,19 @@ module.exports = async function handler(req, res) {
         .filter(m => m.content !== 'sofia_resume' && !m.is_suggestion_private)
         .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
 
-      // Inject private knowledge from learned answers
       const knowledgeItems = (history || [])
         .filter(m => m.is_suggestion_private && m.content.startsWith('[CONOCIMIENTO APRENDIDO]'))
         .map(m => m.content.replace('[CONOCIMIENTO APRENDIDO]: ', ''))
 
       const knowledgeBlock = knowledgeItems.length > 0
-        ? `\n\nCONOCIMIENTO PRIVADO (usa esto para responder, no menciones la fuente):\n${knowledgeItems.join('\n')}`
+        ? `\n\nCONOCIMIENTO PRIVADO:\n${knowledgeItems.join('\n')}`
         : ''
 
-      const suggestionSystem = `${system}${knowledgeBlock}
+      // IMPORTANTE: El backend debe proveer el 'system' base si viene vacío del panel
+      const baseSystem = system || "Tu prompt del sistema por defecto aquí..."; 
+      const suggestionSystem = `${baseSystem}${knowledgeBlock}
 
-INSTRUCCIÓN PRIVADA DE ANDREA (no mencionar que viene de Andrea, responde como si lo supieras tú):
+INSTRUCCIÓN PRIVADA DE ANDREA:
 ${suggestion_text}`
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -140,7 +139,7 @@ ${suggestion_text}`
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: 'claude-3-5-sonnet-20241022', // Nombre del modelo actualizado
           max_tokens: 1000,
           system: suggestionSystem,
           messages: chatHistory.length > 0 ? chatHistory : [{ role: 'user', content: '...' }]
@@ -155,6 +154,7 @@ ${suggestion_text}`
         content: assistantText,
         is_from_andrea: false
       })
+      
       await supabase.from('chat_conversations').update({
         needs_attention: false,
         status: 'active',
@@ -174,7 +174,6 @@ ${suggestion_text}`
       })
     }
 
-    // Load private knowledge to inject
     const { data: knowledgeRows } = await supabase
       .from('chat_messages')
       .select('content')
@@ -187,7 +186,7 @@ ${suggestion_text}`
       .map(m => m.content.replace('[CONOCIMIENTO APRENDIDO]: ', ''))
 
     const knowledgeBlock = knowledgeItems.length > 0
-      ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO (úsalo naturalmente, sin mencionar la fuente):\n${knowledgeItems.join('\n')}`
+      ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO:\n${knowledgeItems.join('\n')}`
       : ''
 
     const finalSystem = system + knowledgeBlock
@@ -200,7 +199,7 @@ ${suggestion_text}`
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1000,
         system: finalSystem,
         messages
@@ -209,7 +208,6 @@ ${suggestion_text}`
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
-    // ── DETECTAR DUDA ──
     const hasDoubt = detectsDoubt(assistantText)
 
     if (convId) {
@@ -221,7 +219,6 @@ ${suggestion_text}`
       })
 
       if (hasDoubt) {
-        // Mark conversation as needing clarification from Andrea
         await supabase.from('chat_conversations').update({
           needs_attention: true,
           needs_clarification: true,
