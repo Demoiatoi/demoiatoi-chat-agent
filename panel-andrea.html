@@ -148,6 +148,16 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 .login-input:focus{border-color:var(--blue)}
 .login-btn{width:100%;background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:white;border:none;border-radius:8px;padding:11px;font-size:.9rem;font-weight:600;font-family:var(--font-b);cursor:pointer}
 .login-error{color:var(--red);font-size:.75rem;margin-top:6px;display:none}
+
+/* MODO ANDREA / SUGERENCIA */
+.andrea-mode-bar{background:linear-gradient(135deg,#fde8e6,#f5c4c0);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:.75rem;color:#c05a52;font-weight:600;display:none;align-items:center;justify-content:between;gap:8px}
+.andrea-mode-bar.show{display:flex}
+.andrea-mode-bar span{flex:1}
+.btn-ceder{background:#c05a52;color:white;border:none;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:600;font-family:var(--font-b);cursor:pointer}
+.input-mode-tabs{display:flex;gap:6px;margin-bottom:8px}
+.mode-tab{flex:1;padding:6px;border-radius:8px;font-size:.75rem;font-weight:600;font-family:var(--font-b);cursor:pointer;border:1.5px solid var(--sand);background:var(--white);color:var(--warm);text-align:center;transition:.15s}
+.mode-tab.active{border-color:var(--blue);background:var(--blue-pale);color:var(--blue)}
+.mode-tab.andrea-mode{border-color:#e8837a;background:#fde8e6;color:#c05a52}
 </style>
 </head>
 <body>
@@ -214,12 +224,21 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
       </div>
       <div class="messages-area" id="messagesArea"></div>
       <div class="andrea-input-area">
-        <div class="andrea-label">👩‍💼 Tu respuesta como Andrea</div>
+        <!-- Barra de modo Andrea activo -->
+        <div class="andrea-mode-bar" id="andreaModeBar">
+          <span>👩‍💼 Modo Andrea activo — el agente está en pausa</span>
+          <button class="btn-ceder" onclick="cederTurno()">🤖 Ceder turno a Sofía</button>
+        </div>
+        <!-- Tabs de modo -->
+        <div class="input-mode-tabs">
+          <button class="mode-tab active" id="tabSugerencia" onclick="setInputMode('sugerencia')">💡 Sugerir a Sofía</button>
+          <button class="mode-tab" id="tabAndrea" onclick="setInputMode('andrea')">👩‍💼 Intervenir como Andrea</button>
+        </div>
         <div class="andrea-row">
-          <textarea class="andrea-textarea" id="andreaInput" placeholder="Escribe tu respuesta al cliente..." rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAndrea()}"
+          <textarea class="andrea-textarea" id="andreaInput" placeholder="Escribe una sugerencia para Sofía..." rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFromPanel()}"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-          <button class="andrea-send" id="andreaSendBtn" onclick="sendAndrea()">Enviar ✉️</button>
+          <button class="andrea-send" id="andreaSendBtn" onclick="sendFromPanel()">Enviar ✉️</button>
         </div>
       </div>
     </div>
@@ -424,7 +443,26 @@ function renderMessages(messages) {
   if (atBottom) area.scrollTop = area.scrollHeight
 }
 
-// ── ENVIAR ANDREA ──
+// ── MODO INPUT ──
+let currentInputMode = 'sugerencia'
+let andreaIsActive = false
+
+function setInputMode(mode) {
+  currentInputMode = mode
+  document.getElementById('tabSugerencia').className = 'mode-tab' + (mode==='sugerencia'?' active':'')
+  document.getElementById('tabAndrea').className = 'mode-tab' + (mode==='andrea'?' andrea-mode active':'')
+  const input = document.getElementById('andreaInput')
+  input.placeholder = mode === 'sugerencia'
+    ? '💡 Escribe una sugerencia para que Sofía la reformule...'
+    : '👩‍💼 Escribe tu mensaje directo al cliente como Andrea...'
+}
+
+function sendFromPanel() {
+  if (currentInputMode === 'andrea') sendAndrea()
+  else sendSugerencia()
+}
+
+// ── ENVIAR COMO ANDREA ──
 async function sendAndrea() {
   const input = document.getElementById('andreaInput')
   const text = input.value.trim()
@@ -432,18 +470,81 @@ async function sendAndrea() {
   document.getElementById('andreaSendBtn').disabled = true
   input.value = ''; input.style.height = ''
 
+  // Marcar que Andrea está activa
+  andreaIsActive = true
+  document.getElementById('andreaModeBar').classList.add('show')
+
+  // Guardar señal de Andrea activa en Supabase
+  await sb(`chat_conversations?id=eq.${currentConvId}`, {
+    method:'PATCH', prefer:'return=minimal',
+    body: JSON.stringify({ needs_attention: false, status:'andrea_active', updated_at: new Date().toISOString() })
+  })
+
   await sb('chat_messages', {
     method:'POST', prefer:'return=minimal',
     body: JSON.stringify({ conversation_id: currentConvId, role:'assistant', content: text, is_from_andrea: true })
   })
-  await sb(`chat_conversations?id=eq.${currentConvId}`, {
-    method:'PATCH', prefer:'return=minimal',
-    body: JSON.stringify({ needs_attention: false, status:'active', updated_at: new Date().toISOString() })
-  })
+
   await loadMessages(currentConvId)
   await loadConversations()
   document.getElementById('andreaSendBtn').disabled = false
-  showToast('✅ Mensaje enviado')
+  showToast('✅ Mensaje enviado como Andrea')
+}
+
+// ── ENVIAR SUGERENCIA A SOFÍA ──
+async function sendSugerencia() {
+  const input = document.getElementById('andreaInput')
+  const text = input.value.trim()
+  if (!text || !currentConvId) return
+  document.getElementById('andreaSendBtn').disabled = true
+  input.value = ''; input.style.height = ''
+
+  // Llamar al proxy con la sugerencia como contexto del sistema
+  try {
+    const res = await fetch('https://demoiatoi-chat-agent.vercel.app/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_id: currentConvId,
+        messages: [{ role: 'user', content: '[SUGERENCIA INTERNA DE ANDREA — no mencionar]: ' + text }],
+        system: 'Eres Sofía, la asistente de De Moi à Toi. Andrea te ha dado esta información para que la uses en tu respuesta al cliente de forma natural, sin mencionar que viene de Andrea. Responde de forma cálida y natural como si lo supieras tú.',
+        is_suggestion: true
+      })
+    })
+    await loadMessages(currentConvId)
+    await loadConversations()
+    showToast('💡 Sugerencia enviada a Sofía')
+  } catch(e) {
+    showToast('❌ Error al enviar sugerencia')
+  }
+
+  document.getElementById('andreaSendBtn').disabled = false
+}
+
+// ── CEDER TURNO A SOFÍA ──
+async function cederTurno() {
+  if (!currentConvId) return
+  andreaIsActive = false
+  document.getElementById('andreaModeBar').classList.remove('show')
+
+  await sb(`chat_conversations?id=eq.${currentConvId}`, {
+    method:'PATCH', prefer:'return=minimal',
+    body: JSON.stringify({ status: 'active', updated_at: new Date().toISOString() })
+  })
+
+  // Notificar al chat que Sofía retoma
+  await sb('chat_messages', {
+    method:'POST', prefer:'return=minimal',
+    body: JSON.stringify({
+      conversation_id: currentConvId,
+      role: 'assistant',
+      content: 'sofia_resume',
+      is_from_andrea: false
+    })
+  })
+
+  await loadConversations()
+  showToast('🤖 Turno cedido a Sofía')
 }
 
 // ── RESOLVER ──
