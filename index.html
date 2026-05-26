@@ -745,7 +745,7 @@ async function callAPI(userMsg) {
   conversationHistory.push({role:"user",content:userMsg});
   const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat",{
     method:"POST",
-    headers:{"Content-Type":"application/json","x-api-key":"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"},
+    headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       model:"claude-sonnet-4-6",
       max_tokens:1000,
