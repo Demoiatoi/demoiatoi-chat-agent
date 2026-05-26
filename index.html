@@ -831,6 +831,7 @@ function goToStep2() {
   window._customerEmail = email;
   document.getElementById('gateStep1').classList.remove('active');
   document.getElementById('gateStep2').classList.add('active');
+  console.log('email guardado:', window._customerEmail);
 }
 
 function selectSource(btn, source) {
