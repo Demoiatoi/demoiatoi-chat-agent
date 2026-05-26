@@ -1020,12 +1020,13 @@ async function showChat() {
 }
 
 function initChat() {
-  // Si ya tiene email guardado, ir directo al chat
   if (window._customerEmail) {
     showChat();
     return;
   }
-  // Si no, mostrar email gate
+  document.getElementById('emailGate').style.display = 'flex';
+  document.getElementById('messagesArea').style.display = 'none';
+  document.getElementById('inputArea').style.display = 'none';
 }
 
 function startChat() {
