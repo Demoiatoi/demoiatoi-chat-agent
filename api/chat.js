@@ -5,7 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 )
 
-// Listado exacto de señales de duda de tu archivo original
+// Phrases that indicate the agent is uncertain
 const DOUBT_SIGNALS = [
   'no estoy segura', 'no lo sé', 'no sé con certeza', 'debería consultarlo',
   'no tengo esa información', 'no puedo confirmar', 'te recomiendo contactar',
@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
     const {
       messages, system, conversation_id, customer_email, customer_source,
       is_suggestion, suggestion_text, is_contact_request, contact_channel,
-      andrea_reply_to_doubt
+      andrea_reply_to_doubt, doubt_message_id
     } = req.body
 
     let convId = conversation_id
@@ -70,6 +70,7 @@ module.exports = async function handler(req, res) {
     }
 
     // ── MODO CONTACTO DIRECTO ──
+    // Cliente pide hablar con Andrea directamente
     if (is_contact_request && convId) {
       await supabase.from('chat_conversations').update({
         needs_attention: true,
@@ -82,7 +83,9 @@ module.exports = async function handler(req, res) {
     }
 
     // ── RESPUESTA DE ANDREA A UNA DUDA ──
+    // Andrea responde la duda → guardar como conocimiento
     if (andrea_reply_to_doubt && suggestion_text && convId) {
+      // Save as learned knowledge (is_suggestion_private so client never sees it)
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
@@ -90,6 +93,7 @@ module.exports = async function handler(req, res) {
         is_from_andrea: false,
         is_suggestion_private: true
       })
+      // Clear the clarification flag
       await supabase.from('chat_conversations').update({
         needs_attention: false,
         needs_clarification: false,
@@ -97,6 +101,8 @@ module.exports = async function handler(req, res) {
         status: 'active',
         updated_at: new Date().toISOString()
       }).eq('id', convId)
+      // Now re-run the agent with this new knowledge so it replies to client
+      // Fall through to normal mode with knowledge injected
     }
 
     // ── MODO SUGERENCIA ──
@@ -112,18 +118,18 @@ module.exports = async function handler(req, res) {
         .filter(m => m.content !== 'sofia_resume' && !m.is_suggestion_private)
         .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
 
+      // Inject private knowledge from learned answers
       const knowledgeItems = (history || [])
         .filter(m => m.is_suggestion_private && m.content.startsWith('[CONOCIMIENTO APRENDIDO]'))
         .map(m => m.content.replace('[CONOCIMIENTO APRENDIDO]: ', ''))
 
       const knowledgeBlock = knowledgeItems.length > 0
-        ? `\n\nCONOCIMIENTO PRIVADO:\n${knowledgeItems.join('\n')}`
+        ? `\n\nCONOCIMIENTO PRIVADO (usa esto para responder, no menciones la fuente):\n${knowledgeItems.join('\n')}`
         : ''
 
-      const baseSystem = system || "Tu prompt del sistema por defecto aquí..."; 
-      const suggestionSystem = `${baseSystem}${knowledgeBlock}
+      const suggestionSystem = `${system}${knowledgeBlock}
 
-INSTRUCCIÓN PRIVADA DE ANDREA:
+INSTRUCCIÓN PRIVADA DE ANDREA (no mencionar que viene de Andrea, responde como si lo supieras tú):
 ${suggestion_text}`
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -134,7 +140,7 @@ ${suggestion_text}`
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-6',
           max_tokens: 1000,
           system: suggestionSystem,
           messages: chatHistory.length > 0 ? chatHistory : [{ role: 'user', content: '...' }]
@@ -149,7 +155,6 @@ ${suggestion_text}`
         content: assistantText,
         is_from_andrea: false
       })
-      
       await supabase.from('chat_conversations').update({
         needs_attention: false,
         status: 'active',
@@ -169,6 +174,7 @@ ${suggestion_text}`
       })
     }
 
+    // Load private knowledge to inject
     const { data: knowledgeRows } = await supabase
       .from('chat_messages')
       .select('content')
@@ -181,12 +187,11 @@ ${suggestion_text}`
       .map(m => m.content.replace('[CONOCIMIENTO APRENDIDO]: ', ''))
 
     const knowledgeBlock = knowledgeItems.length > 0
-      ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO:\n${knowledgeItems.join('\n')}`
+      ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO (úsalo naturalmente, sin mencionar la fuente):\n${knowledgeItems.join('\n')}`
       : ''
 
     const finalSystem = system + knowledgeBlock
 
-    // Petición nativa limpia respetando la versión de tu API original
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -195,19 +200,19 @@ ${suggestion_text}`
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: finalSystem,
-        messages: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content) }))
+        messages
       })
     })
-    
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
+    // ── DETECTAR DUDA ──
     const hasDoubt = detectsDoubt(assistantText)
 
-    if (convId && assistantText) {
+    if (convId) {
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
@@ -215,12 +220,19 @@ ${suggestion_text}`
         is_from_andrea: false
       })
 
-      await supabase.from('chat_conversations').update({
-        needs_attention: hasDoubt,
-        needs_clarification: hasDoubt,
-        alert_type: hasDoubt ? 'doubt' : null,
-        updated_at: new Date().toISOString()
-      }).eq('id', convId)
+      if (hasDoubt) {
+        // Mark conversation as needing clarification from Andrea
+        await supabase.from('chat_conversations').update({
+          needs_attention: true,
+          needs_clarification: true,
+          alert_type: 'doubt',
+          updated_at: new Date().toISOString()
+        }).eq('id', convId)
+      } else {
+        await supabase.from('chat_conversations').update({
+          updated_at: new Date().toISOString()
+        }).eq('id', convId)
+      }
     }
 
     return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt })
