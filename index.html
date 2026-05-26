@@ -758,6 +758,13 @@ async function callAPI(userMsg) {
   });
   if (!res.ok) throw new Error(res.status);
   const data = await res.json();
+  if (data.conversation_id) {
+  window._convId = data.conversation_id;
+  try {
+    sessionStorage.setItem('dmat_conv_id', data.conversation_id);
+    document.cookie = `dmat_conv=${data.conversation_id};max-age=86400;path=/`;
+  } catch(e) {}
+}
   const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
   conversationHistory.push({role:"assistant",content:text});
   return text;
