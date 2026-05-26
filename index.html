@@ -22,11 +22,11 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .demo-header p{color:var(--warm-gray);font-size:.9rem;line-height:1.6}
 .embed-note{background:var(--sand);border-left:3px solid var(--rose);padding:12px 16px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:.82rem;color:var(--warm-gray);max-width:560px;margin-bottom:24px;width:100%}
 .embed-note code{background:rgba(232,131,122,.15);padding:2px 6px;border-radius:4px;font-size:.8rem;color:var(--rose-dark)}
-/* CHAT */
+
 .chat-widget{width:100%;max-width:420px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow),0 2px 8px rgba(232,131,122,.15);display:flex;flex-direction:column;overflow:hidden;height:620px;position:relative}
 .chat-header{background:linear-gradient(135deg,var(--rose-dark) 0%,var(--rose) 100%);padding:18px 20px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .avatar-wrap{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:1.25rem;border:2px solid rgba(255,255,255,.4);flex-shrink:0;position:relative}
-.avatar-wrap::after{content:'';position:absolute;bottom:1px;right:1px;width:9px;height:9px;background:#4ade80;border-radius:50%;border:2px solid var(--rose)}
+.avatar-wrap::after{content:'';position:absolute;bottom:1px;right:1px;width:99px;height:9px;background:#4ade80;border-radius:50%;border:2px solid var(--rose);width:9px}
 .chat-header-info{flex:1;min-width:0}
 .chat-header-info strong{display:block;color:var(--white);font-size:.95rem;font-weight:600;font-family:var(--font-display)}
 .chat-header-info span{color:rgba(255,255,255,.78);font-size:.75rem}
@@ -45,7 +45,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .bubble-time{font-size:.65rem;color:var(--warm-gray);margin-top:4px}
 .bubble-row.agent .bubble-time{text-align:left}
 .bubble-row.user .bubble-time{text-align:right}
-/* Producto cards */
+
 .product-cards{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 .product-card{background:var(--white);border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:10px 12px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .15s;text-decoration:none}
 .product-card:hover{border-color:var(--rose-light);box-shadow:0 4px 14px rgba(232,131,122,.18);transform:translateY(-1px)}
@@ -55,18 +55,18 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .pc-price{font-size:.85rem;font-weight:600;color:var(--rose-dark);margin-top:3px}
 .pc-why{font-size:.72rem;color:var(--warm-gray);margin-top:2px;line-height:1.3}
 .pc-cta{display:inline-block;margin-top:4px;font-size:.72rem;color:var(--rose);font-weight:500}
-/* Quick replies */
+
 .quick-replies{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
 .qr-btn{background:var(--white);border:1.5px solid var(--rose-light);color:var(--rose-dark);padding:6px 13px;border-radius:20px;font-size:.78rem;cursor:pointer;font-family:var(--font-body);font-weight:500;transition:background .18s,border-color .18s,transform .12s;white-space:nowrap}
 .qr-btn:hover{background:var(--rose-light);border-color:var(--rose);transform:translateY(-1px)}
-/* Typing */
+
 .typing-indicator{display:flex;align-items:center;gap:5px;padding:11px 15px;background:var(--sand);border-radius:18px;border-bottom-left-radius:5px;width:fit-content}
 .typing-dot{width:6px;height:6px;background:var(--warm-gray);border-radius:50%;animation:typingBounce 1.2s infinite}
 .typing-dot:nth-child(2){animation-delay:.2s}
 .typing-dot:nth-child(3){animation-delay:.4s}
 @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-/* Input */
+
 .input-area{padding:14px 16px 16px;background:var(--white);border-top:1.5px solid var(--sand);flex-shrink:0}
 .input-row{display:flex;gap:10px;align-items:flex-end}
 .chat-input{flex:1;border:1.5px solid var(--sand);border-radius:24px;padding:10px 16px;font-size:.875rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;resize:none;max-height:96px;min-height:42px;line-height:1.5;transition:border-color .2s}
@@ -76,7 +76,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .send-btn:hover{transform:scale(1.06)}
 .send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .powered-by{text-align:center;font-size:.65rem;color:var(--warm-gray);margin-top:8px;opacity:.7}
-/* Config */
+
 .config-panel,.embed-section{max-width:420px;width:100%;margin-top:20px}
 .config-panel{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
 .config-panel h3{font-family:var(--font-display);font-size:1rem;margin-bottom:14px;color:var(--dark)}
@@ -94,82 +94,26 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .copy-btn{background:var(--rose);color:white;border:none;border-radius:var(--radius-sm);padding:8px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .2s}
 .copy-btn:hover{background:var(--rose-dark)}
 .copy-btn.copied{background:#4ade80;color:var(--dark)}
-/* Status bar */
 .status-bar{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 12px;font-size:.72rem;color:#2d7a4a;margin-bottom:12px;display:flex;align-items:center;gap:6px}
 .status-dot{width:6px;height:6px;background:#4ade80;border-radius:50%;flex-shrink:0}
 
-/* BOTÓN ANDREA */
-.andrea-bar{
-  padding:10px 16px;
-  background:var(--white);
-  border-top:1.5px solid var(--sand);
-  flex-shrink:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.andrea-btn{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  background:transparent;
-  border:1.5px solid var(--rose);
-  color:var(--rose-dark);
-  border-radius:20px;
-  padding:7px 16px;
-  font-size:.78rem;
-  font-family:var(--font-b);
-  font-weight:600;
-  cursor:pointer;
-  transition:background .18s, transform .12s;
-  width:100%;
-  justify-content:center;
-}
+.andrea-bar{padding:10px 16px;background:var(--white);border-top:1.5px solid var(--sand);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.andrea-btn{display:flex;align-items:center;gap:8px;background:transparent;border:1.5px solid var(--rose);color:var(--rose-dark);border-radius:20px;padding:7px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .18s, transform .12s;width:100%;justify-content:center}
 .andrea-btn:hover{background:var(--rose-light);transform:translateY(-1px)}
 .andrea-dot{width:8px;height:8px;background:#f59e0b;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite}
 
-/* MODAL */
-.modal-overlay{
-  position:absolute;inset:0;
-  background:rgba(26,46,58,.55);
-  display:flex;align-items:center;justify-content:center;
-  z-index:999;
-  border-radius:var(--radius);
-  animation:fadeIn .2s ease;
-}
+.modal-overlay{position:absolute;inset:0;background:rgba(26,46,58,.55);display:flex;align-items:center;justify-content:center;z-index:999;border-radius:var(--radius);animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.modal-box{
-  background:var(--white);
-  border-radius:var(--radius);
-  padding:24px 20px;
-  max-width:340px;
-  width:90%;
-  box-shadow:0 20px 60px rgba(0,0,0,.2);
-  text-align:center;
-}
+.modal-box{background:var(--white);border-radius:var(--radius);padding:24px 20px;max-width:340px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center}
 .modal-icon{font-size:2.2rem;margin-bottom:12px;display:block}
-.modal-box h3{font-family:var(--font-d);font-size:1.1rem;color:var(--dark);margin-bottom:10px}
-.modal-box p{font-size:.84rem;color:var(--warm);line-height:1.6;margin-bottom:18px}
-.modal-box p strong{color:var(--dark)}
+.modal-box h3{font-family:var(--font-display);font-size:1.1rem;color:var(--dark);margin-bottom:10px}
+.modal-box p{font-size:.84rem;color:var(--warm-gray);line-height:1.6;margin-bottom:18px}
 .modal-actions{display:flex;flex-direction:column;gap:8px}
-.modal-btn-yes{
-  background:linear-gradient(135deg,var(--rose-dark),var(--rose));
-  color:white;border:none;border-radius:var(--radius-sm);
-  padding:10px;font-size:.85rem;font-weight:600;
-  font-family:var(--font-b);cursor:pointer;
-  transition:opacity .2s;
-}
+.modal-btn-yes{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:var(--radius-sm);padding:10px;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .2s}
 .modal-btn-yes:hover{opacity:.9}
-.modal-btn-no{
-  background:transparent;border:1.5px solid var(--sand);
-  color:var(--warm);border-radius:var(--radius-sm);
-  padding:10px;font-size:.85rem;font-weight:500;
-  font-family:var(--font-b);cursor:pointer;
-  transition:background .18s;
-}
+.modal-btn-no{background:transparent;border:1.5px solid var(--sand);color:var(--warm-gray);border-radius:var(--radius-sm);padding:10px;font-size:.85rem;font-weight:500;cursor:pointer;transition:background .18s}
 .modal-btn-no:hover{background:var(--sand)}
 
-/* EMAIL GATE */
 .email-gate{padding:24px 16px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center;overflow-y:auto}
 .gate-step{display:none;flex-direction:column;gap:12px;animation:slideIn .25s ease}
 .gate-step.active{display:flex}
@@ -183,13 +127,11 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .email-submit:hover{opacity:.9;transform:translateY(-1px)}
 .email-error{font-size:.75rem;color:#dc2626;text-align:center;display:none}
 
-/* Opciones cómo nos conociste */
 .source-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .source-btn{background:var(--white);border:1.5px solid var(--sand);border-radius:12px;padding:10px 8px;font-size:.78rem;font-family:var(--font-body);color:var(--dark);cursor:pointer;transition:all .18s;text-align:center;line-height:1.3}
 .source-btn:hover{border-color:var(--rose-light);background:var(--sand)}
 .source-btn.selected{border-color:var(--rose);background:var(--rose-light);color:var(--rose-dark);font-weight:600}
 
-/* VALORACIÓN */
 .rating-overlay{position:absolute;inset:0;background:rgba(26,46,58,.6);display:none;align-items:center;justify-content:center;z-index:99;border-radius:var(--radius)}
 .rating-overlay.show{display:flex}
 .rating-box{background:var(--white);border-radius:var(--radius);padding:24px 20px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
@@ -211,11 +153,11 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 
 <div class="demo-header">
   <h1>Agente de ventas <em>inteligente</em></h1>
-  <p>Conectado en tiempo real a todo tu catálogo de <strong>De Moi à Toi Regalos</strong>. Conoce cada producto, recomienda con criterio y atiende como tú lo harías.</p>
+  <p>Conectado en tiempo real a todo tu catálogo de <strong>De Moi à Toi Regalos</strong>.</p>
 </div>
 
 <div class="embed-note">
-  💡 <strong>Catálogo completo en tiempo real:</strong> El agente consulta directamente <code>demoiatoi.com</code> para mostrar productos actualizados. Funciona tanto como app independiente como widget embebido en tu Shopify.
+  💡 <strong>Catálogo completo en tiempo real:</strong> Sincronizado dinámicamente con Shopify.
 </div>
 
 <div class="chat-widget" id="chatWidget">
@@ -231,7 +173,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="email-gate" id="emailGate">
     <div class="gate-step active" id="gateStep1">
       <div class="gate-logo">🎁</div>
-      <div class="gate-title">¡Hola! Para poder ayudarte mejor y hacer seguimiento de tu consulta, necesito tu email 😊</div>
+      <div class="gate-title">¡Hola! Para comenzar introduce tu email 😊</div>
       <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com" onkeydown="if(event.key==='Enter') goToStep2()">
       <button class="email-submit" onclick="goToStep2()">Continuar →</button>
       <div class="email-error" id="emailError">Por favor introduce un email válido</div>
@@ -239,14 +181,11 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     <div class="gate-step" id="gateStep2">
       <div class="gate-logo">🌟</div>
       <div class="gate-title">¿Cómo nos conociste?</div>
-      <div class="gate-subtitle">Nos ayuda a saber dónde encontrarte 😊</div>
       <div class="source-options">
         <button class="source-btn" onclick="selectSource(this,'Instagram')">📸 Instagram</button>
         <button class="source-btn" onclick="selectSource(this,'Google')">🔍 Google</button>
-        <button class="source-btn" onclick="selectSource(this,'Recomendación')">💬 Me lo recomendaron</button>
+        <button class="source-btn" onclick="selectSource(this,'Recomendación')">💬 Recomendación</button>
         <button class="source-btn" onclick="selectSource(this,'Ya era clienta')">💛 Ya era clienta</button>
-        <button class="source-btn" onclick="selectSource(this,'Pinterest')">📌 Pinterest</button>
-        <button class="source-btn" onclick="selectSource(this,'Otro')">✨ Otro</button>
       </div>
       <button class="email-submit" id="sourceSubmit" onclick="submitSource()" style="opacity:.5;pointer-events:none">Empezar a chatear →</button>
     </div>
@@ -255,8 +194,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="rating-overlay" id="ratingOverlay">
     <div class="rating-box">
       <div class="rating-icon">⭐</div>
-      <div class="rating-title">Déjanos tu valoración sobre la atención recibida para ayudarnos a mejorar</div>
-      <div class="rating-subtitle">¿Cómo ha sido tu experiencia hoy?</div>
+      <div class="rating-title">¿Cómo ha sido tu experiencia hoy?</div>
       <div class="stars" id="starsRow">
         <span class="star" onclick="setStar(1)">⭐</span>
         <span class="star" onclick="setStar(2)">⭐</span>
@@ -265,8 +203,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
         <span class="star" onclick="setStar(5)">⭐</span>
       </div>
       <textarea class="rating-comment" id="ratingComment" rows="2" placeholder="Comentario opcional..."></textarea>
-      <button class="rating-submit" onclick="submitRating()">Enviar valoración</button>
-      <br><button class="rating-skip" onclick="skipRating()">Omitir</button>
+      <button class="rating-submit" onclick="submitRating()">Enviar</button>
     </div>
   </div>
 
@@ -274,18 +211,16 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="input-area" id="inputArea" style="display:none">
     <div class="input-row">
       <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Enviar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
     </div>
-    <p class="powered-by">Asistido por IA · De Moi à Toi Regalos</p>
   </div>
   <div class="andrea-bar">
     <button class="andrea-btn" onclick="showAndreaModal()">
-      <span class="andrea-dot"></span>
-      Hablar con Andrea
+      <span class="andrea-dot"></span>Hablar con Andrea
     </button>
   </div>
 
@@ -293,52 +228,12 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     <div class="modal-box">
       <span class="modal-icon">👩‍💼</span>
       <h3>¿Quieres hablar con Andrea?</h3>
-      <p>Andrea puede demorarse en responder ya que está preparando pedidos urgentes.<br><br>
-      Te recomendamos usar <strong>este chat</strong> o escribir a <strong>contacto@demoiatoi.es</strong> para una respuesta más rápida.<br><br>
-      ¿Sigues queriendo contactar con ella?</p>
       <div class="modal-actions">
-        <button class="modal-btn-yes" onclick="waitForAndrea()">⏳ Esperar a que Andrea se una</button>
-        <button class="modal-btn-yes" style="background:linear-gradient(135deg,#1a5276,#2e86c1);margin-top:2px" onclick="contactAndreaEmail()">✉️ Escribir por Email</button>
-        <button class="modal-btn-no" onclick="closeAndreaModal()">No, usaré el chat</button>
+        <button class="modal-btn-yes" onclick="waitForAndrea()">⏳ Esperar en el chat</button>
+        <button class="modal-btn-no" onclick="closeAndreaModal()">Volver al chat</button>
       </div>
     </div>
   </div>
-</div>
-
-<div class="config-panel">
-  <h3>⚙️ Personaliza tu <span>agente</span></h3>
-  <div class="status-bar"><div class="status-dot"></div>Catálogo completo activo — todos los productos de demoiatoi.com disponibles</div>
-  <div class="config-row">
-    <label>Nombre del agente</label>
-    <input type="text" id="cfgName" value="Sofía" placeholder="Ej: Marta, Luna, Noa...">
-  </div>
-  <div class="config-row">
-    <label>Política de envíos</label>
-    <textarea id="cfgShipping" rows="3">Envío estándar: 3-5 días hábiles en España, 3,99€. Gratis a partir de 40€. Express 24-48h disponible. Hacemos envíos a toda España y Portugal. Los productos personalizados tardan entre 2 y 5 días hábiles extra en prepararse.</textarea>
-  </div>
-  <div class="config-row">
-    <label>Política de devoluciones</label>
-    <textarea id="cfgReturns" rows="2">Aceptamos devoluciones en 14 días si el producto llega defectuoso. Los productos personalizados no admiten devolución salvo error nuestro. Contacta en contacto@demoiatoi.es</textarea>
-  </div>
-  <div class="config-row">
-    <label>Información adicional / instrucciones especiales</label>
-    <textarea id="cfgExtra" rows="2">Si el cliente tiene dudas sobre personalización, explica que lo hace nuestro equipo artesanal en España. Para pedidos de más de 20 unidades, recomienda contactar directamente para presupuesto especial.</textarea>
-  </div>
-  <button class="save-btn" onclick="saveConfig()">💾 Guardar y reiniciar chat</button>
-</div>
-
-<div class="embed-section">
-  <h3>🔗 Instalar en <span>Shopify</span></h3>
-  <div class="code-block" id="embedCode">
-<script>
-  window.DMAT_AGENT = {
-    agentName: "Sofía",
-    storeUrl: "https://demoiatoi.com",
-    accentColor: "#e8837a"
-  };
-</script>
-<script src="TU-HOSTING/dmat-agent.js" defer></script></div>
-  <button class="copy-btn" id="copyBtn" onclick="copyEmbed()">📋 Copiar código</button>
 </div>
 
 <script>
@@ -350,96 +245,66 @@ let _waitingTimer = null
 let _lastActivityTime = Date.now()
 let conversationHistory = [];
 let isTyping = false;
+let _selectedSource = null;
+let _selectedStar = 0;
 
 let agentConfig = {
   name: "Sofía",
-  shipping: document.getElementById('cfgShipping').value,
-  returns:  document.getElementById('cfgReturns').value,
-  extra:    document.getElementById('cfgExtra').value
+  shipping: "Envío estándar: 3-5 días hábiles en España, 3,99€. Gratis a partir de 40€.",
+  returns:  "Aceptamos devoluciones en 14 días si el producto llega defectuoso.",
+  extra:    "Si el cliente tiene dudas sobre personalización, explica que lo hace nuestro equipo artesanal."
 };
 
-// Mantenemos este catálogo básico local EXCLUSIVAMENTE para renderizar tarjetas visuales si el ID coincide
-const CATALOG = [
-  {id:"6245603967127",title:"Jabones personalizados con nombre",price:"1.90",url:"https://demoiatoi.com/products/nombres-jabon-detalle-bautizo",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/nombre_de_jabon_mateo_melocoton.jpg"},
-  {id:"6254322155671",title:"Detalle Original Jabón Invitados",price:"12.50",url:"https://demoiatoi.com/products/detalle-original-cubo-rosa-jabon",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/cubito_jabon_detalle_comunion.jpg"}
-];
-
 async function checkAndreaMessages() {
-  if (!window._convId) return
+  if (!window._convId) return;
   try {
     const convRes = await fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}&select=status`, {
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
-    })
-    const convData = await convRes.json()
-    const status = convData?.[0]?.status
+    });
+    const convData = await convRes.json();
+    const status = convData?.[0]?.status;
 
     if (status === 'andrea_active' && !_andreaActive) {
-      _andreaActive = true
-      startWaitingMessages()
+      _andreaActive = true;
     }
     if (status === 'active' && _andreaActive) {
-      _andreaActive = false
-      stopWaitingMessages()
+      _andreaActive = false;
     }
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&role=eq.assistant&order=created_at.desc&limit=1`, {
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
-    })
-    const data = await res.json()
+    });
+    const data = await res.json();
     if (data && data.length > 0) {
-      const last = data[0]
+      const last = data[0];
       if (last.id !== window._lastAndreaId) {
-        window._lastAndreaId = last.id
+        window._lastAndreaId = last.id;
         if (last.content === 'sofia_resume') {
-          _andreaActive = false
-          stopWaitingMessages()
-          renderBubble('agent', 'Hola de nuevo 😊 Andrea me ha pasado el testigo. ¿En qué más puedo ayudarte?')
+          _andreaActive = false;
+          renderBubble('agent', 'Hola de nuevo 😊 Andrea me ha pasado el testigo. ¿En qué más puedo ayudarte?');
         } else if (last.is_from_andrea) {
-          renderAndreaBubble(last.content)
-          _lastActivityTime = Date.now()
+          renderAndreaBubble(last.content);
         } else {
-          renderBubble('agent', last.content)
-          _lastActivityTime = Date.now()
+          renderBubble('agent', last.content);
         }
       }
     }
   } catch(e) {}
 }
 
-const waitingMessages = [
-  'Seguimos en ello, un momento más 🙏',
-  'Estamos consultando tu pregunta, enseguida te respondemos 😊'
-]
-let _waitingIdx = 0
-
-function startWaitingMessages() {
-  stopWaitingMessages()
-  _waitingTimer = setInterval(() => {
-    if (Date.now() - _lastActivityTime > 55000) {
-      renderBubble('agent', waitingMessages[_waitingIdx % waitingMessages.length])
-      _waitingIdx++
-      _lastActivityTime = Date.now()
-    }
-  }, 60000)
-}
-
-function stopWaitingMessages() {
-  if (_waitingTimer) { clearInterval(_waitingTimer); _waitingTimer = null }
-}
-
 function renderAndreaBubble(text) {
-  const area = document.getElementById('messagesArea')
-  const row = document.createElement('div')
-  row.className = 'bubble-row agent'
+  const area = document.getElementById('messagesArea');
+  const row = document.createElement('div');
+  row.className = 'bubble-row agent';
   row.innerHTML = `
     <div class="bubble-avatar" style="background:linear-gradient(135deg,#fde8e6,#e8837a)">👩‍💼</div>
     <div>
       <div style="font-size:.65rem;color:var(--warm-gray);margin-bottom:3px">Andrea</div>
       <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.split('\n').join('<br>')}</div>
-      <div class="bubble-time">${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>
-    </div>`
-  area.appendChild(row)
-  area.scrollTop = area.scrollHeight
+      <div class="bubble-time">${getTime()}</div>
+    </div>`;
+  area.appendChild(row);
+  area.scrollTop = area.scrollHeight;
 }
 
 function getTime() {
@@ -451,43 +316,14 @@ function renderBubble(role, content) {
   const row = document.createElement("div");
   row.className = `bubble-row ${role}`;
 
-  let cleanContent = content;
-  let products = [];
-
-  if (role === "agent") {
-    const m = content.match(/PRODUCTOS_JSON:(\[[\s\S]*?\])/);
-    if (m) {
-      cleanContent = content.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
-      try {
-        const refs = JSON.parse(m[1]);
-        products = refs.map(r => {
-          const p = CATALOG.find(x => x.id === r.id);
-          return p ? {...p, razon: r.razon} : {id: r.id, title: "Ver Producto Personalizado", price: "", url: "https://demoiatoi.com", img: "", razon: r.razon};
-        }).filter(Boolean);
-      } catch(e) {}
-    }
-  }
-
-  let cardsHtml = "";
-  if (products.length) {
-    cardsHtml = '<div class="product-cards">' + products.map(p => `
-      <a class="product-card" href="${p.url}" target="_blank">
-        <img src="${p.img}" alt="${p.title}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2252%22 height=%2252%22><rect width=%2252%22 height=%2252%22 fill=%22%23f0e6d8%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2222%22>🎁</text></svg>'">
-        <div class="pc-info">
-          <div class="pc-name">${p.title}</div>
-          ${p.price ? `<div class="pc-price">Desde ${p.price}€</div>` : ''}
-          ${p.razon ? `<div class="pc-why">${p.razon}</div>` : ''}
-          <span class="pc-cta">Ver producto →</span>
-        </div>
-      </a>`).join('') + '</div>';
-  }
-
+  let cleanContent = content.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
   const msgHtml = cleanContent.replace(/\n/g, "<br>");
   const avatarEmoji = role === "agent" ? "🎁" : "👤";
+  
   row.innerHTML = `
     <div class="bubble-avatar">${avatarEmoji}</div>
     <div>
-      <div class="bubble">${msgHtml}${cardsHtml}</div>
+      <div class="bubble">${msgHtml}</div>
       <div class="bubble-time">${getTime()}</div>
     </div>`;
   area.appendChild(row);
@@ -515,6 +351,7 @@ function renderQuickReplies(replies) {
 }
 
 function showTyping() {
+  removeTyping();
   const area = document.getElementById("messagesArea");
   const row = document.createElement("div");
   row.className = "bubble-row agent";
@@ -536,12 +373,13 @@ function showTyping() {
 }
 function removeTyping() { document.getElementById("typingRow")?.remove(); }
 
-// ── LLAMADA COMPLETAMENTE LIMPIA AL BACKEND SEGURO ──
 async function callAPI(userMsg) {
-  conversationHistory.push({role:"user",content:userMsg});
-  const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
+  // Aseguramos que solo guardamos texto simple en el historial local
+  conversationHistory.push({ role: "user", content: userMsg });
+  
+  const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: conversationHistory,
       conversation_id: window._convId || null,
@@ -553,31 +391,34 @@ async function callAPI(userMsg) {
       cfg_name: agentConfig.name
     })
   });
-  if (!res.ok) throw new Error(res.status);
+  
+  if (!res.ok) throw new Error("HTTP Error " + res.status);
   const data = await res.json();
-  const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
-  conversationHistory.push({role:"assistant",content:text});
+  const text = data.content?.find(b => b.type === "text")?.text || "Lo siento, ha habido un problema de procesamiento.";
+  
+  conversationHistory.push({ role: "assistant", content: text });
   return text;
 }
 
 async function sendUserMessage(text) {
   if (!text.trim() || isTyping) return;
-  _lastActivityTime = Date.now();
   isTyping = true;
   document.getElementById("quickReplies")?.remove();
   renderBubble("user", text);
+  
   const inp = document.getElementById("chatInput");
   inp.value = ""; inp.style.height = "";
   document.getElementById("sendBtn").disabled = true;
+  
   showTyping();
   try {
     const reply = await callAPI(text);
     removeTyping();
-    _lastActivityTime = Date.now();
     if (!_andreaActive) renderBubble("agent", reply);
   } catch(e) {
+    console.error(e);
     removeTyping();
-    renderBubble("agent","¡Ups! Problema de conexión. Inténtalo de nuevo o escríbenos a contacto@demoiatoi.es 💛");
+    renderBubble("agent", "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏");
   }
   document.getElementById("sendBtn").disabled = false;
   isTyping = false;
@@ -586,27 +427,6 @@ async function sendUserMessage(text) {
 function sendMessage() { sendUserMessage(document.getElementById("chatInput").value.trim()); }
 function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
-
-function saveConfig() {
-  agentConfig.name     = document.getElementById("cfgName").value.trim() || "Sofía";
-  agentConfig.shipping = document.getElementById("cfgShipping").value.trim();
-  agentConfig.returns  = document.getElementById("cfgReturns").value.trim();
-  agentConfig.extra    = document.getElementById("cfgExtra").value.trim();
-  document.getElementById("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
-  conversationHistory = [];
-  document.getElementById("messagesArea").innerHTML = "";
-  initChat();
-  alert(`✅ Guardado. El agente ahora se llama "${agentConfig.name}" y tiene la configuración actualizada.`);
-}
-
-function copyEmbed() {
-  navigator.clipboard.writeText(document.getElementById("embedCode").textContent).then(() => {
-    const btn = document.getElementById("copyBtn");
-    btn.textContent = "✅ ¡Copiado!";
-    btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = "📋 Copiar código"; btn.classList.remove("copied"); }, 2500);
-  });
-}
 
 function goToStep2() {
   const email = document.getElementById('emailInput').value.trim();
@@ -648,10 +468,7 @@ function submitSource() {
   } catch(e) { showChat(); }
 }
 
-function setStar(n) {
-  _selectedStar = n;
-  document.querySelectorAll('.star').forEach((s,i) => { s.classList.toggle('active', i < n); });
-}
+function setStar(n) { _selectedStar = n; document.querySelectorAll('.star').forEach((s,i) => { s.classList.toggle('active', i < n); }); }
 
 function submitRating() {
   if (_selectedStar === 0) return;
@@ -659,21 +476,13 @@ function submitRating() {
   if (window._convId) {
     fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}`, {
       method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_ANON,
-        'Authorization': `Bearer ${SUPABASE_ANON}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ rating: _selectedStar, rating_comment: comment, status: 'resolved' })
     });
   }
-  document.querySelector('.rating-box').innerHTML = '<div class="rating-icon">💛</div><div class="rating-thanks">¡Gracias por tu valoración!</div>';
+  document.querySelector('.rating-box').innerHTML = '<div>¡Gracias por tu valoración!</div>';
   setTimeout(() => { document.getElementById('ratingOverlay').classList.remove('show'); }, 2000);
 }
-
-function skipRating() { document.getElementById('ratingOverlay').classList.remove('show'); }
-function showRating() { document.getElementById('ratingOverlay').classList.add('show'); }
 
 async function showChat() {
   document.getElementById('emailGate').style.display = 'none';
@@ -684,35 +493,35 @@ async function showChat() {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&order=created_at.asc&limit=30`, {
         headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
-      })
-      const msgs = await res.json()
+      });
+      const msgs = await res.json();
       if (msgs && msgs.length > 0) {
         conversationHistory = msgs
-          .filter(m => !m.is_from_andrea && m.content !== 'sofia_resume')
-          .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+          .filter(m => !m.is_from_andrea && m.content !== 'sofia_resume' && !m.is_suggestion_private)
+          .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
 
-        const lastMsgs = msgs.slice(-6)
-        const area = document.getElementById('messagesArea')
-        if (lastMsgs.length > 0) {
-          const divider = document.createElement('div')
-          divider.style.cssText = 'text-align:center;font-size:.72rem;color:var(--warm-gray);padding:8px 0;opacity:.7'
-          divider.textContent = '— Conversación anterior —'
-          area.appendChild(divider)
-        }
-        lastMsgs.forEach(m => {
-          if (m.content === 'sofia_resume') return
-          if (m.is_from_andrea) renderAndreaBubble(m.content)
-          else renderBubble(m.role === 'user' ? 'user' : 'agent', m.content)
-        })
-        const lastMsg = msgs[msgs.length - 1]
-        if (lastMsg) window._lastAndreaId = lastMsg.id
-        setInterval(checkAndreaMessages, 5000)
-        return
+        const area = document.getElementById('messagesArea');
+        area.innerHTML = ""; // Limpiar
+        
+        const divider = document.createElement('div');
+        divider.style.cssText = 'text-align:center;font-size:.72rem;color:var(--warm-gray);padding:8px 0;opacity:.7';
+        divider.textContent = '— Conversación anterior —';
+        area.appendChild(divider);
+
+        msgs.forEach(m => {
+          if (m.content === 'sofia_resume') return;
+          if (m.is_from_andrea) renderAndreaBubble(m.content);
+          else renderBubble(m.role === 'user' ? 'user' : 'agent', m.content);
+        });
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg) window._lastAndreaId = lastMsg.id;
+        setInterval(checkAndreaMessages, 5000);
+        return;
       }
-    } catch(e) {}
+    } catch(e) { console.error(e); }
   }
   startChat();
-  setInterval(checkAndreaMessages, 5000)
+  setInterval(checkAndreaMessages, 5000);
 }
 
 function initChat() {
@@ -723,12 +532,13 @@ function initChat() {
 }
 
 function startChat() {
-  renderBubble("agent", `¡Hola! 👋 Soy ${agentConfig.name}, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? Cuéntame y te ayudo a encontrar el detalle perfecto 🎁`);
+  const area = document.getElementById("messagesArea");
+  area.innerHTML = ""; 
+  renderBubble("agent", `¡Hola! 👋 Soy Sofía, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? Cuéntame y te ayudo a encontrar el detalle perfecto 🎁`);
   renderQuickReplies([
     "🎁 Busco un regalo o detalle",
     "📦 Estado de mi pedido",
-    "⚠️ Tengo una incidencia",
-    "💬 Hablar con Andrea"
+    "⚠️ Tengo una incidencia"
   ]);
 }
 
@@ -738,15 +548,11 @@ function waitForAndrea() {
   closeAndreaModal();
   renderBubble("agent", "¡Perfecto! 👩‍💼 Andrea se unirá a esta conversación en breve. Puedes seguir escribiendo aquí.");
 }
-function contactAndreaEmail() {
-  closeAndreaModal();
-  window.open('mailto:contacto@demoiatoi.es?subject=Quiero%20hablar%20con%20Andrea', '_blank');
-}
 
 window.addEventListener("DOMContentLoaded", () => {
   try {
-    window._customerEmail = sessionStorage.getItem('dmat_email') || (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_email=')) || '').split('=')[1]?.trim() || null;
-    window._convId = sessionStorage.getItem('dmat_conv_id') || (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_conv=')) || '').split('=')[1]?.trim() || null;
+    window._customerEmail = sessionStorage.getItem('dmat_email') || null;
+    window._convId = sessionStorage.getItem('dmat_conv_id') || null;
     
     if (window._customerEmail && !window._convId) {
       fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(window._customerEmail)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
@@ -755,7 +561,6 @@ window.addEventListener("DOMContentLoaded", () => {
         if (data && data.length > 0) {
           window._convId = data[0].id;
           sessionStorage.setItem('dmat_conv_id', window._convId);
-          document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
         }
         initChat();
       }).catch(()=>{ initChat(); });
