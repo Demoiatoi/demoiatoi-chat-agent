@@ -1,175 +1,1064 @@
-const { createClient } = require('@supabase/supabase-js')
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
-
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') return res.status(200).end()
-  if (req.method !== 'POST') return res.status(405).end()
-
-  try {
-    const { messages, system, conversation_id, customer_email, customer_source, is_suggestion, suggestion_text } = req.body
-
-    let convId = conversation_id
-
-    if (!convId) {
-      if (customer_email) {
-        const { data: existing } = await supabase
-          .from('chat_conversations')
-          .select('id')
-          .eq('customer_email', customer_email)
-          .neq('status', 'resolved')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .single()
-        if (existing) convId = existing.id
-      }
-
-      if (!convId) {
-        const { data: newConv } = await supabase
-          .from('chat_conversations')
-          .insert({
-            status: 'active',
-            customer_email: customer_email || null,
-            customer_source: customer_source || null
-          })
-          .select()
-          .single()
-        convId = newConv?.id
-      }
-    }
-
-    if (customer_email && convId) {
-      await supabase
-        .from('chat_conversations')
-        .update({ customer_email, updated_at: new Date().toISOString() })
-        .eq('id', convId)
-    }
-
-    // ── MODO SUGERENCIA ──
-    // Andrea da una pista al agente sin que el cliente lo vea
-    if (is_suggestion && suggestion_text && convId) {
-      // Obtener historial real de la conversación
-      const { data: history } = await supabase
-        .from('chat_messages')
-        .select('role, content, is_from_andrea')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: true })
-        .limit(20)
-
-      const chatHistory = (history || [])
-        .filter(m => m.content !== 'sofia_resume')
-        .map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content
-        }))
-
-      // Sistema con la sugerencia como contexto privado
-      const suggestionSystem = `${system}
-
-INSTRUCCIÓN PRIVADA DE ANDREA (no mencionar que viene de Andrea, responde como si lo supieras tú):
-${suggestion_text}`
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          system: suggestionSystem,
-          messages: chatHistory.length > 0 ? chatHistory : [{ role: 'user', content: '...' }]
-        })
-      })
-
-      const data = await response.json()
-      const assistantText = data.content?.[0]?.text || ''
-
-      // Guardar respuesta del agente
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'assistant',
-        content: assistantText,
-        is_from_andrea: false
-      })
-
-      // Quitar alerta
-      await supabase
-        .from('chat_conversations')
-        .update({ needs_attention: false, status: 'active', updated_at: new Date().toISOString() })
-        .eq('id', convId)
-
-      return res.status(200).json({ ...data, conversation_id: convId })
-    }
-
-    // ── MODO NORMAL ──
-    const lastUserMsg = messages[messages.length - 1]
-
-    if (convId && !is_suggestion) {
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'user',
-        content: lastUserMsg.content
-      })
-    }
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system,
-        messages
-      })
-    })
-
-    const data = await response.json()
-    const assistantText = data.content?.[0]?.text || ''
-
-    if (convId) {
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'assistant',
-        content: assistantText,
-        is_from_andrea: false
-      })
-    }
-
-    // Detectar si necesita atención
-    const needsAttention =
-      lastUserMsg.content.toLowerCase().includes('andrea') ||
-      lastUserMsg.content.toLowerCase().includes('incidencia') ||
-      lastUserMsg.content.toLowerCase().includes('problema') ||
-      lastUserMsg.content.toLowerCase().includes('urgente') ||
-      lastUserMsg.content.toLowerCase().includes('no ha llegado') ||
-      assistantText.toLowerCase().includes('voy a consultarlo') ||
-      assistantText.toLowerCase().includes('espera un momento')
-
-    if (needsAttention && convId) {
-      await supabase
-        .from('chat_conversations')
-        .update({ needs_attention: true, status: 'needs_review' })
-        .eq('id', convId)
-    }
-
-    res.status(200).json({ ...data, conversation_id: convId })
-
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Error interno' })
-  }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente de Ventas – De Moi à Toi Regalos</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rose:#4a7fa5;--rose-light:#b8d4e8;--rose-dark:#2c5f7a;
+  --cream:#f0f5f9;--sand:#dceaf3;--warm-gray:#6b8fa3;
+  --dark:#1a2e3a;--white:#ffffff;
+  --shadow:0 8px 32px rgba(45,35,32,.12);
+  --radius:18px;--radius-sm:10px;
+  --font-display:'Playfair Display',serif;--font-body:'DM Sans',sans-serif;
 }
+body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px}
+.demo-header{text-align:center;margin-bottom:24px;max-width:560px}
+.demo-header h1{font-family:var(--font-display);font-size:1.9rem;color:var(--dark);margin-bottom:8px}
+.demo-header h1 em{color:var(--rose);font-style:italic}
+.demo-header p{color:var(--warm-gray);font-size:.9rem;line-height:1.6}
+.embed-note{background:var(--sand);border-left:3px solid var(--rose);padding:12px 16px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:.82rem;color:var(--warm-gray);max-width:560px;margin-bottom:24px;width:100%}
+.embed-note code{background:rgba(232,131,122,.15);padding:2px 6px;border-radius:4px;font-size:.8rem;color:var(--rose-dark)}
+/* CHAT */
+.chat-widget{width:100%;max-width:420px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow),0 2px 8px rgba(232,131,122,.15);display:flex;flex-direction:column;overflow:hidden;height:620px;position:relative}
+.chat-header{background:linear-gradient(135deg,var(--rose-dark) 0%,var(--rose) 100%);padding:18px 20px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.avatar-wrap{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:1.25rem;border:2px solid rgba(255,255,255,.4);flex-shrink:0;position:relative}
+.avatar-wrap::after{content:'';position:absolute;bottom:1px;right:1px;width:9px;height:9px;background:#4ade80;border-radius:50%;border:2px solid var(--rose)}
+.chat-header-info{flex:1;min-width:0}
+.chat-header-info strong{display:block;color:var(--white);font-size:.95rem;font-weight:600;font-family:var(--font-display)}
+.chat-header-info span{color:rgba(255,255,255,.78);font-size:.75rem}
+.header-badge{background:rgba(255,255,255,.2);color:var(--white);font-size:.68rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.3);flex-shrink:0}
+.messages-area{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+.messages-area::-webkit-scrollbar{width:4px}
+.messages-area::-webkit-scrollbar-thumb{background:var(--rose-light);border-radius:4px}
+.bubble-row{display:flex;align-items:flex-end;gap:8px;animation:slideIn .28s ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.bubble-row.user{flex-direction:row-reverse}
+.bubble-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--rose-light),var(--rose));display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
+.bubble-row.user .bubble-avatar{background:linear-gradient(135deg,#dde8f5,#a0b4cc)}
+.bubble{max-width:82%;padding:11px 15px;border-radius:18px;font-size:.875rem;line-height:1.55;word-break:break-word}
+.bubble-row.agent .bubble{background:var(--sand);color:var(--dark);border-bottom-left-radius:5px}
+.bubble-row.user .bubble{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:var(--white);border-bottom-right-radius:5px}
+.bubble-time{font-size:.65rem;color:var(--warm-gray);margin-top:4px}
+.bubble-row.agent .bubble-time{text-align:left}
+.bubble-row.user .bubble-time{text-align:right}
+/* Producto cards */
+.product-cards{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.product-card{background:var(--white);border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:10px 12px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .15s;text-decoration:none}
+.product-card:hover{border-color:var(--rose-light);box-shadow:0 4px 14px rgba(232,131,122,.18);transform:translateY(-1px)}
+.product-card img{width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;background:var(--sand)}
+.pc-info{flex:1;min-width:0}
+.pc-name{font-size:.82rem;font-weight:500;color:var(--dark);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pc-price{font-size:.85rem;font-weight:600;color:var(--rose-dark);margin-top:3px}
+.pc-why{font-size:.72rem;color:var(--warm-gray);margin-top:2px;line-height:1.3}
+.pc-cta{display:inline-block;margin-top:4px;font-size:.72rem;color:var(--rose);font-weight:500}
+/* Quick replies */
+.quick-replies{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.qr-btn{background:var(--white);border:1.5px solid var(--rose-light);color:var(--rose-dark);padding:6px 13px;border-radius:20px;font-size:.78rem;cursor:pointer;font-family:var(--font-body);font-weight:500;transition:background .18s,border-color .18s,transform .12s;white-space:nowrap}
+.qr-btn:hover{background:var(--rose-light);border-color:var(--rose);transform:translateY(-1px)}
+/* Typing */
+.typing-indicator{display:flex;align-items:center;gap:5px;padding:11px 15px;background:var(--sand);border-radius:18px;border-bottom-left-radius:5px;width:fit-content}
+.typing-dot{width:6px;height:6px;background:var(--warm-gray);border-radius:50%;animation:typingBounce 1.2s infinite}
+.typing-dot:nth-child(2){animation-delay:.2s}
+.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
+/* Input */
+.input-area{padding:14px 16px 16px;background:var(--white);border-top:1.5px solid var(--sand);flex-shrink:0}
+.input-row{display:flex;gap:10px;align-items:flex-end}
+.chat-input{flex:1;border:1.5px solid var(--sand);border-radius:24px;padding:10px 16px;font-size:.875rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;resize:none;max-height:96px;min-height:42px;line-height:1.5;transition:border-color .2s}
+.chat-input:focus{border-color:var(--rose)}
+.chat-input::placeholder{color:var(--warm-gray)}
+.send-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s,opacity .2s;color:white}
+.send-btn:hover{transform:scale(1.06)}
+.send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.powered-by{text-align:center;font-size:.65rem;color:var(--warm-gray);margin-top:8px;opacity:.7}
+/* Config */
+.config-panel,.embed-section{max-width:420px;width:100%;margin-top:20px}
+.config-panel{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.config-panel h3{font-family:var(--font-display);font-size:1rem;margin-bottom:14px;color:var(--dark)}
+.config-panel h3 span{color:var(--rose)}
+.config-row{margin-bottom:12px}
+.config-row label{display:block;font-size:.78rem;font-weight:500;color:var(--warm-gray);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.config-row textarea,.config-row input{width:100%;border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:8px 12px;font-size:.82rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;transition:border-color .2s;resize:vertical}
+.config-row textarea:focus,.config-row input:focus{border-color:var(--rose)}
+.save-btn{width:100%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:var(--radius-sm);padding:11px;font-size:.875rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s,transform .15s;margin-top:4px}
+.save-btn:hover{opacity:.92;transform:translateY(-1px)}
+.embed-section{background:var(--dark);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.embed-section h3{font-family:var(--font-display);font-size:1rem;color:var(--cream);margin-bottom:12px}
+.embed-section h3 span{color:var(--rose-light)}
+.code-block{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:14px;font-family:'Courier New',monospace;font-size:.72rem;color:#f0c4c0;white-space:pre-wrap;word-break:break-all;line-height:1.6;margin-bottom:10px}
+.copy-btn{background:var(--rose);color:white;border:none;border-radius:var(--radius-sm);padding:8px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .2s}
+.copy-btn:hover{background:var(--rose-dark)}
+.copy-btn.copied{background:#4ade80;color:var(--dark)}
+/* Status bar */
+.status-bar{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 12px;font-size:.72rem;color:#2d7a4a;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.status-dot{width:6px;height:6px;background:#4ade80;border-radius:50%;flex-shrink:0}
+
+/* BOTÓN ANDREA */
+.andrea-bar{
+  padding:10px 16px;
+  background:var(--white);
+  border-top:1.5px solid var(--sand);
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.andrea-btn{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:transparent;
+  border:1.5px solid var(--rose);
+  color:var(--rose-dark);
+  border-radius:20px;
+  padding:7px 16px;
+  font-size:.78rem;
+  font-family:var(--font-b);
+  font-weight:600;
+  cursor:pointer;
+  transition:background .18s, transform .12s;
+  width:100%;
+  justify-content:center;
+}
+.andrea-btn:hover{background:var(--rose-light);transform:translateY(-1px)}
+.andrea-dot{width:8px;height:8px;background:#f59e0b;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* MODAL */
+.modal-overlay{
+  position:absolute;inset:0;
+  background:rgba(26,46,58,.55);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;
+  border-radius:var(--radius);
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{
+  background:var(--white);
+  border-radius:var(--radius);
+  padding:24px 20px;
+  max-width:340px;
+  width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);
+  text-align:center;
+}
+.modal-icon{font-size:2.2rem;margin-bottom:12px;display:block}
+.modal-box h3{font-family:var(--font-d);font-size:1.1rem;color:var(--dark);margin-bottom:10px}
+.modal-box p{font-size:.84rem;color:var(--warm);line-height:1.6;margin-bottom:18px}
+.modal-box p strong{color:var(--dark)}
+.modal-actions{display:flex;flex-direction:column;gap:8px}
+.modal-btn-yes{
+  background:linear-gradient(135deg,var(--rose-dark),var(--rose));
+  color:white;border:none;border-radius:var(--radius-sm);
+  padding:10px;font-size:.85rem;font-weight:600;
+  font-family:var(--font-b);cursor:pointer;
+  transition:opacity .2s;
+}
+.modal-btn-yes:hover{opacity:.9}
+.modal-btn-no{
+  background:transparent;border:1.5px solid var(--sand);
+  color:var(--warm);border-radius:var(--radius-sm);
+  padding:10px;font-size:.85rem;font-weight:500;
+  font-family:var(--font-b);cursor:pointer;
+  transition:background .18s;
+}
+.modal-btn-no:hover{background:var(--sand)}
+
+/* EMAIL GATE */
+.email-gate{
+  padding:20px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  flex:1;
+  justify-content:center;
+}
+.email-gate p{
+  font-size:.9rem;
+  color:var(--dark);
+  line-height:1.6;
+  text-align:center;
+}
+.email-input-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.email-field{
+  border:1.5px solid var(--sand);
+  border-radius:24px;
+  padding:11px 18px;
+  font-size:.875rem;
+  font-family:var(--font-b);
+  color:var(--dark);
+  background:var(--cream);
+  outline:none;
+  transition:border-color .2s;
+  text-align:center;
+}
+.email-field:focus{border-color:var(--rose)}
+.email-field::placeholder{color:var(--warm-gray)}
+.email-submit{
+  background:linear-gradient(135deg,var(--rose-dark),var(--rose));
+  color:white;
+  border:none;
+  border-radius:24px;
+  padding:11px;
+  font-size:.875rem;
+  font-weight:600;
+  font-family:var(--font-b);
+  cursor:pointer;
+  transition:opacity .2s,transform .15s;
+}
+.email-submit:hover{opacity:.9;transform:translateY(-1px)}
+.email-error{
+  font-size:.75rem;
+  color:#dc2626;
+  text-align:center;
+  display:none;
+}
+
+/* EMAIL GATE MEJORADO */
+.email-gate{padding:24px 16px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center;overflow-y:auto}
+.gate-step{display:none;flex-direction:column;gap:12px;animation:slideIn .25s ease}
+.gate-step.active{display:flex}
+.gate-logo{text-align:center;font-size:2rem;margin-bottom:4px}
+.gate-title{font-family:var(--font-display);font-size:1.1rem;color:var(--dark);text-align:center;line-height:1.4}
+.gate-subtitle{font-size:.82rem;color:var(--warm-gray);text-align:center}
+.email-field{border:1.5px solid var(--sand);border-radius:24px;padding:11px 18px;font-size:.875rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;transition:border-color .2s;text-align:center;width:100%}
+.email-field:focus{border-color:var(--rose)}
+.email-field::placeholder{color:var(--warm-gray)}
+.email-submit{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:24px;padding:11px;font-size:.875rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s,transform .15s;width:100%}
+.email-submit:hover{opacity:.9;transform:translateY(-1px)}
+.email-error{font-size:.75rem;color:#dc2626;text-align:center;display:none}
+/* Opciones cómo nos conociste */
+.source-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.source-btn{background:var(--white);border:1.5px solid var(--sand);border-radius:12px;padding:10px 8px;font-size:.78rem;font-family:var(--font-body);color:var(--dark);cursor:pointer;transition:all .18s;text-align:center;line-height:1.3}
+.source-btn:hover{border-color:var(--rose-light);background:var(--sand)}
+.source-btn.selected{border-color:var(--rose);background:var(--rose-light);color:var(--rose-dark);font-weight:600}
+/* VALORACIÓN */
+.rating-overlay{position:absolute;inset:0;background:rgba(26,46,58,.6);display:none;align-items:center;justify-content:center;z-index:99;border-radius:var(--radius)}
+.rating-overlay.show{display:flex}
+.rating-box{background:var(--white);border-radius:var(--radius);padding:24px 20px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.rating-icon{font-size:2rem;margin-bottom:8px}
+.rating-title{font-family:var(--font-display);font-size:1rem;color:var(--dark);margin-bottom:6px;line-height:1.4}
+.rating-subtitle{font-size:.78rem;color:var(--warm-gray);margin-bottom:16px}
+.stars{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
+.star{font-size:2rem;cursor:pointer;transition:transform .15s;filter:grayscale(1);opacity:.4}
+.star:hover,.star.active{filter:grayscale(0);opacity:1;transform:scale(1.15)}
+.rating-comment{width:100%;border:1.5px solid var(--sand);border-radius:10px;padding:10px 12px;font-size:.82rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;resize:none;transition:border-color .2s;margin-bottom:12px}
+.rating-comment:focus{border-color:var(--rose)}
+.rating-submit{width:100%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:10px;padding:10px;font-size:.85rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s}
+.rating-submit:hover{opacity:.9}
+.rating-skip{background:none;border:none;color:var(--warm-gray);font-size:.75rem;cursor:pointer;margin-top:8px;font-family:var(--font-body);text-decoration:underline}
+.rating-thanks{font-size:.9rem;color:var(--dark);padding:8px 0}
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <h1>Agente de ventas <em>inteligente</em></h1>
+  <p>Conectado en tiempo real a todo tu catálogo de <strong>De Moi à Toi Regalos</strong>. Conoce cada producto, recomienda con criterio y atiende como tú lo harías.</p>
+</div>
+
+<div class="embed-note">
+  💡 <strong>Catálogo completo en tiempo real:</strong> El agente consulta directamente <code>demoiatoi.com</code> para mostrar productos actualizados. Funciona tanto como app independiente como widget embebido en tu Shopify.
+</div>
+
+<!-- CHAT WIDGET -->
+<div class="chat-widget" id="chatWidget">
+  <div class="chat-header">
+    <div class="avatar-wrap">🎁</div>
+    <div class="chat-header-info">
+      <strong id="agentNameDisplay">Sofía · De Moi à Toi</strong>
+      <span>Aquí para ayudarte a encontrar el regalo perfecto ✨</span>
+    </div>
+    <div class="header-badge">En línea</div>
+  </div>
+  <!-- EMAIL GATE -->
+  <div class="email-gate" id="emailGate">
+    <!-- PASO 1: Email -->
+    <div class="gate-step active" id="gateStep1">
+      <div class="gate-logo">🎁</div>
+      <div class="gate-title">¡Hola! Para poder ayudarte mejor y hacer seguimiento de tu consulta, necesito tu email 😊</div>
+      <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com"
+        onkeydown="if(event.key==='Enter') goToStep2()">
+      <button class="email-submit" onclick="goToStep2()">Continuar →</button>
+      <div class="email-error" id="emailError">Por favor introduce un email válido</div>
+    </div>
+    <!-- PASO 2: Cómo nos conociste -->
+    <div class="gate-step" id="gateStep2">
+      <div class="gate-logo">🌟</div>
+      <div class="gate-title">¿Cómo nos conociste?</div>
+      <div class="gate-subtitle">Nos ayuda a saber dónde encontrarte 😊</div>
+      <div class="source-options">
+        <button class="source-btn" onclick="selectSource(this,'Instagram')">📸 Instagram</button>
+        <button class="source-btn" onclick="selectSource(this,'Google')">🔍 Google</button>
+        <button class="source-btn" onclick="selectSource(this,'Recomendación')">💬 Me lo recomendaron</button>
+        <button class="source-btn" onclick="selectSource(this,'Ya era clienta')">💛 Ya era clienta</button>
+        <button class="source-btn" onclick="selectSource(this,'Pinterest')">📌 Pinterest</button>
+        <button class="source-btn" onclick="selectSource(this,'Otro')">✨ Otro</button>
+      </div>
+      <button class="email-submit" id="sourceSubmit" onclick="submitSource()" style="opacity:.5;pointer-events:none">Empezar a chatear →</button>
+    </div>
+  </div>
+
+  <!-- VALORACIÓN -->
+  <div class="rating-overlay" id="ratingOverlay">
+    <div class="rating-box">
+      <div class="rating-icon">⭐</div>
+      <div class="rating-title">Déjanos tu valoración sobre la atención recibida para ayudarnos a mejorar</div>
+      <div class="rating-subtitle">¿Cómo ha sido tu experiencia hoy?</div>
+      <div class="stars" id="starsRow">
+        <span class="star" onclick="setStar(1)">⭐</span>
+        <span class="star" onclick="setStar(2)">⭐</span>
+        <span class="star" onclick="setStar(3)">⭐</span>
+        <span class="star" onclick="setStar(4)">⭐</span>
+        <span class="star" onclick="setStar(5)">⭐</span>
+      </div>
+      <textarea class="rating-comment" id="ratingComment" rows="2" placeholder="Comentario opcional..."></textarea>
+      <button class="rating-submit" onclick="submitRating()">Enviar valoración</button>
+      <br><button class="rating-skip" onclick="skipRating()">Omitir</button>
+    </div>
+  </div>
+
+  <div class="messages-area" id="messagesArea" style="display:none"></div>
+  <div class="input-area" id="inputArea" style="display:none">
+    <div class="input-row">
+      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Enviar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <p class="powered-by">Asistido por IA · De Moi à Toi Regalos</p>
+  </div>
+  <div class="andrea-bar">
+    <button class="andrea-btn" onclick="showAndreaModal()">
+      <span class="andrea-dot"></span>
+      Hablar con Andrea
+    </button>
+  </div>
+
+  <!-- MODAL ANDREA -->
+  <div class="modal-overlay" id="andreaModal" style="display:none">
+    <div class="modal-box">
+      <span class="modal-icon">👩‍💼</span>
+      <h3>¿Quieres hablar con Andrea?</h3>
+      <p>Andrea puede demorarse en responder ya que está preparando pedidos urgentes.<br><br>
+      Te recomendamos usar <strong>este chat</strong> o escribir a <strong>contacto@demoiatoi.es</strong> para una respuesta más rápida.<br><br>
+      ¿Sigues queriendo contactar con ella?</p>
+      <div class="modal-actions">
+        <button class="modal-btn-yes" onclick="waitForAndrea()">⏳ Esperar a que Andrea se una</button>
+        <button class="modal-btn-yes" style="background:linear-gradient(135deg,#1a5276,#2e86c1);margin-top:2px" onclick="contactAndreaEmail()">✉️ Escribir por Email</button>
+        <button class="modal-btn-no" onclick="closeAndreaModal()">No, usaré el chat</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIG -->
+<div class="config-panel">
+  <h3>⚙️ Personaliza tu <span>agente</span></h3>
+  <div class="status-bar"><div class="status-dot"></div>Catálogo completo activo — todos los productos de demoiatoi.com disponibles</div>
+  <div class="config-row">
+    <label>Nombre del agente</label>
+    <input type="text" id="cfgName" value="Sofía" placeholder="Ej: Marta, Luna, Noa...">
+  </div>
+  <div class="config-row">
+    <label>Política de envíos</label>
+    <textarea id="cfgShipping" rows="3">Envío estándar: 3-5 días hábiles en España, 3,99€. Gratis a partir de 40€. Express 24-48h disponible. Hacemos envíos a toda España y Portugal. Los productos personalizados tardan entre 2 y 5 días hábiles extra en prepararse.</textarea>
+  </div>
+  <div class="config-row">
+    <label>Política de devoluciones</label>
+    <textarea id="cfgReturns" rows="2">Aceptamos devoluciones en 14 días si el producto llega defectuoso. Los productos personalizados no admiten devolución salvo error nuestro. Contacta en contacto@demoiatoi.es</textarea>
+  </div>
+  <div class="config-row">
+    <label>Información adicional / instrucciones especiales</label>
+    <textarea id="cfgExtra" rows="2">Si el cliente tiene dudas sobre personalización, explica que lo hace nuestro equipo artesanal en España. Para pedidos de más de 20 unidades, recomienda contactar directamente para presupuesto especial.</textarea>
+  </div>
+  <button class="save-btn" onclick="saveConfig()">💾 Guardar y reiniciar chat</button>
+</div>
+
+<!-- EMBED CODE -->
+<div class="embed-section">
+  <h3>🔗 Instalar en <span>Shopify</span></h3>
+  <div class="code-block" id="embedCode"><!-- Pega en Online Store → Edit code → theme.liquid, antes de </body> -->
+<script>
+  window.DMAT_AGENT = {
+    agentName: "Sofía",
+    storeUrl: "https://demoiatoi.com",
+    accentColor: "#e8837a"
+  };
+</script>
+<script src="TU-HOSTING/dmat-agent.js" defer></script></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyEmbed()">📋 Copiar código</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SUPABASE — para recibir respuestas de Andrea en tiempo real
+// ═══════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://tjsvgvcfddwbtnadxbhh.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3ZndmNmZGR3YnRuYWR4YmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTMzMTYsImV4cCI6MjA5MzkyOTMxNn0.GtAOjajdcU1A_bSCGKuE3EyVKe5MTCk2dAytyu2s41g'
+
+let _andreaActive = false
+let _waitingTimer = null
+let _lastActivityTime = Date.now()
+
+async function checkAndreaMessages() {
+  if (!window._convId) return
+  try {
+    // Comprobar estado de la conversación
+    const convRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}&select=status`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    )
+    const convData = await convRes.json()
+    const status = convData?.[0]?.status
+
+    // Detectar si Andrea tomó el control
+    if (status === 'andrea_active' && !_andreaActive) {
+      _andreaActive = true
+      startWaitingMessages()
+    }
+
+    // Detectar si Sofía retoma
+    if (status === 'active' && _andreaActive) {
+      _andreaActive = false
+      stopWaitingMessages()
+    }
+
+    // Buscar nuevos mensajes de Andrea
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&is_from_andrea=eq.true&order=created_at.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    )
+    const data = await res.json()
+    if (data && data.length > 0) {
+      const last = data[0]
+      if (last.id !== window._lastAndreaId) {
+        window._lastAndreaId = last.id
+        if (last.content === 'sofia_resume') {
+          _andreaActive = false
+          stopWaitingMessages()
+          renderBubble('agent', 'Hola de nuevo 😊 Andrea me ha pasado el testigo. ¿En qué más puedo ayudarte?')
+        } else {
+          renderAndreaBubble(last.content)
+          _lastActivityTime = Date.now()
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+const waitingMessages = [
+  'Seguimos en ello, un momento más 🙏',
+  'Estamos consultando tu pregunta, enseguida te respondemos 😊',
+  'Gracias por tu paciencia, ya casi estamos 💛',
+  'Un segundo más, queremos darte la mejor respuesta 🎁'
+]
+let _waitingIdx = 0
+
+function startWaitingMessages() {
+  stopWaitingMessages()
+  _waitingTimer = setInterval(() => {
+    if (Date.now() - _lastActivityTime > 55000) {
+      renderBubble('agent', waitingMessages[_waitingIdx % waitingMessages.length])
+      _waitingIdx++
+      _lastActivityTime = Date.now()
+    }
+  }, 60000)
+}
+
+function stopWaitingMessages() {
+  if (_waitingTimer) { clearInterval(_waitingTimer); _waitingTimer = null }
+}
+
+function renderAndreaBubble(text) {
+  const area = document.getElementById('messagesArea')
+  const row = document.createElement('div')
+  row.className = 'bubble-row agent'
+  row.innerHTML = `
+    <div class="bubble-avatar" style="background:linear-gradient(135deg,#fde8e6,#e8837a)">👩‍💼</div>
+    <div>
+      <div style="font-size:.65rem;color:var(--warm-gray);margin-bottom:3px">Andrea</div>
+      <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.split('\n').join('<br>')}</div>
+      <div class="bubble-time">${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`
+  area.appendChild(row)
+  area.scrollTop = area.scrollHeight
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN
+// ═══════════════════════════════════════════════════════════════
+let agentConfig = {
+  name: "Sofía",
+  shipping: document.getElementById('cfgShipping').value,
+  returns:  document.getElementById('cfgReturns').value,
+  extra:    document.getElementById('cfgExtra').value
+};
+
+let conversationHistory = [];
+let isTyping = false;
+
+// ═══════════════════════════════════════════════════════════════
+//  CATÁLOGO COMPLETO (cargado de Shopify – 200+ productos agrupados por categoría)
+//  El agente usa esto como base de conocimiento + puede buscar por nombre
+// ═══════════════════════════════════════════════════════════════
+const CATALOG = [
+  // ── JABONES Y COSMÉTICA ──
+  {id:"6245603967127",title:"Jabones personalizados con nombre – Detalle bautizo, comunión y fiestas",price:"1.90",url:"https://demoiatoi.com/products/nombres-jabon-detalle-bautizo",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/nombre_de_jabon_mateo_melocoton.jpg",cat:"Jabones",tags:["bautizo","comunión","jabón","personalizable","detalle","invitados","económico","infantil","fiesta"]},
+  {id:"6254322155671",title:"Detalle Original Jabón Invitados Boda Bautizo Comunión",price:"12.50",url:"https://demoiatoi.com/products/detalle-original-cubo-rosa-jabon",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/cubito_jabon_detalle_comunion.jpg",cat:"Jabones",tags:["boda","bautizo","comunión","jabón","detalle","invitados"]},
+  {id:"8591995535697",title:"Jaboncitos aromáticos corazón rosa – Detalle natural para invitados",price:"1.50",url:"https://demoiatoi.com/products/jaboncitos-aromaticos-comunion-bautizo",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/IMG_20230426_090759_edit_34575947310868.webp",cat:"Jabones",tags:["boda","bautizo","comunión","jabón","detalle","aroma","natural"]},
+  {id:"8890460406097",title:"Jabones artesanos personalizados para invitados",price:"5.50",url:"https://demoiatoi.com/products/jabones-artesanos-personalizados-invitados",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/pastillas_jabon_cesta.png",cat:"Jabones",tags:["boda","bautizo","comunión","jabón","artesanal","personalizado","aceite oliva"]},
+  // ── TAZAS ──
+  {id:"7777616691417",title:"Taza Madrina / Padrino Personalizada con Nombre",price:"9.90",url:"https://demoiatoi.com/products/taza-personalizada-padrino-madrina",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza_magica_madrina.png",cat:"Tazas",tags:["madrina","padrino","bautizo","comunión","taza","personalizable","cerámica","mágica","cristal"]},
+  {id:"7889152377049",title:"Taza personalizada «Testigo» – editable online (boda)",price:"12.90",url:"https://demoiatoi.com/products/taza-personalizada-testigo-boda-nombres-alianzas",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza_magica_testigos.png",cat:"Tazas",tags:["boda","testigo","taza","personalizable","cerámica","mágica"]},
+  {id:"7889155457241",title:"Taza personalizada boda «Lo más bonito de tenerte como amig@»",price:"14.90",url:"https://demoiatoi.com/products/taza-de-cristal",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza_testigo_de_boda.png",cat:"Tazas",tags:["boda","taza","testigo","amiga","personalizable","cerámica","cristal"]},
+  {id:"7889162076377",title:"Taza Personalizada Madrina Padrino Cristal Cerámica Mágica",price:"14.90",url:"https://demoiatoi.com/products/taza-cristal-padrino-madrina",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza_magica_padrino_madrina.png",cat:"Tazas",tags:["madrina","padrino","taza","cristal","mágica","bautizo","comunión","boda"]},
+  {id:"6869114290327",title:"Taza personalizada Regalo maestra fin de curso infantil",price:"22.90",url:"https://demoiatoi.com/products/regalo-maestra-fin-de-curso-infantil",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/TZMA1425-WEB.jpg_turbo.webp",cat:"Tazas",tags:["maestra","profe","fin de curso","taza","personalizada","regalo","alumnos"]},
+  {id:"7655524204761",title:"Taza personalizada profesora con nombres – Diseño huellas de colores",price:"17.90",url:"https://demoiatoi.com/products/taza-personalizada-huellas-colores-profesor-equipo",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza-personalizada-huellas-colores-profesor.webp",cat:"Tazas",tags:["profesora","taza","huellas","fin de curso","alumnos","regalo","maestra"]},
+  {id:"9110725919057",title:"Taza personalizada profesora fin de curso – Diseño flores silvestres",price:"14.90",url:"https://demoiatoi.com/products/taza-fin-de-curso-personalizada-flores-silvestres",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/1772319333545.png",cat:"Tazas",tags:["profesora","taza","flores","fin de curso","alumnos","regalo","maestra"]},
+  {id:"8739721740625",title:"Taza para invitados personalizada - Eucalipto",price:"9.00",url:"https://demoiatoi.com/products/taza-personalizada-para-boda-eucalipto",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza-eucalipto.webp",cat:"Tazas",tags:["boda","bautizo","comunión","taza","eucalipto","natural","invitados"]},
+  {id:"7653362827481",title:"Taza personalizada para invitados con nombre y corazón",price:"12.90",url:"https://demoiatoi.com/products/taza-personalizada-corazon-nombre-celebraciones",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza-personalizada-corazon-nombre-celebraciones.webp",cat:"Tazas",tags:["boda","bautizo","comunión","taza","corazón","invitados","económica"]},
+  {id:"8902242926929",title:"Pack 2 tazas personalizadas «¡Sois los siguientes!»",price:"20.00",url:"https://demoiatoi.com/products/taza-personalizada-sois-los-siguientes",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/taza-siguientes.webp",cat:"Tazas",tags:["boda","siguientes","taza","pack","pareja","regalo"]},
+  // ── TEXTIL Y ROPA ──
+  {id:"7014457311383",title:"Calcetines personalizados para padrinos y testigos de boda",price:"12.90",url:"https://demoiatoi.com/products/calcetines-personalizados-boda-algodon-peinado",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/calcetines-personalizados-primo-novia.webp",cat:"Textil",tags:["boda","padrino","madrina","testigo","calcetines","personalizable","hombre"]},
+  {id:"7879735017689",title:"Neceser Personalizado para Invitadas, Damas de Honor – Boda",price:"7.90",url:"https://demoiatoi.com/products/neceser-algodon-con-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/neceser-personalizado_con_nombre.webp",cat:"Bolsos y neceseres",tags:["boda","neceser","invitadas","damas de honor","personalizable","mujer","económico"]},
+  {id:"7034922631319",title:"Regalo personalizado mujer con nombre y flores artesanales (neceser yute)",price:"8.90",url:"https://demoiatoi.com/products/neceser-natural-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/neceser-personalizado-yute-regalo-boda_a157cb7a-2840-4799-bd5f-bce6eb045f0f.webp",cat:"Bolsos y neceseres",tags:["mujer","neceser","flores","personalizable","boda","madre","amiga","eco"]},
+  {id:"8091195900121",title:"Bata personalizada novia IVETTE de satén premium con encaje",price:"79.00",url:"https://demoiatoi.com/products/bata-personalizada-novia-y-equipo",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/avion-web.jpg_turbo_588408ef-92aa-4732-a73c-46607ec56f6c.webp",cat:"Textil novia",tags:["boda","novia","bata","satén","personalizada","equipo novia","damas de honor"]},
+  {id:"8646220382545",title:"Zapatillas de estar por casa personalizadas con nombre para novia",price:"16.00",url:"https://demoiatoi.com/products/pantuflas-personalizadas-inicial",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/Zapatillas_de_novia_con_flores.png",cat:"Zapatillas",tags:["boda","novia","zapatillas","pantuflas","personalizada","damas de honor"]},
+  // ── ZAPATILLAS CONVERSE ──
+  {id:"8096625230041",title:"Zapatillas personalizadas amigas con nombres – Damas de honor",price:"70.00",url:"https://demoiatoi.com/products/zapatillas-de-lona-para-novia-y-damas-de-honor",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/DAMA_DE_HONOR.jpg_turbo_160e4312-899a-42b0-8ed6-4eae1147d46c.webp",cat:"Zapatillas",tags:["boda","amigas","zapatillas","damas de honor","personalizada","novia","regalo"]},
+  {id:"8116484997337",title:"Zapatillas Personalizadas para Boda con Nombres y Fecha",price:"70.00",url:"https://demoiatoi.com/products/zapatillas-personalizadas-boda-i-love",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/zapatillas_novia_him.png",cat:"Zapatillas",tags:["boda","zapatillas","personalizada","nombres","fecha","novios","regalo"]},
+  {id:"9003765367121",title:"Zapatillas personalizadas cumpleaños – Escuela de Magia",price:"70.00",url:"https://demoiatoi.com/products/zapatillas-personalizadas-escuela-magia-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/zapatillas_harry_con_nombre.png",cat:"Zapatillas",tags:["comunión","cumpleaños","zapatillas","magia","harry potter","niño","niña","personalizada"]},
+  // ── MADERA Y GRABADO LASER ──
+  {id:"8096565985497",title:"Placa madera Gracias con flores personalizada",price:"22.50",url:"https://demoiatoi.com/products/placa-madera-gracias-personalizada",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/PLACA_DE_MADERA_CON_FLORES_8d8dd9b9-3a57-4457-a10d-ed39be795555.webp",cat:"Madera",tags:["boda","comunión","bautizo","madrina","padrino","placa","madera","flores","personalizada"]},
+  {id:"8068460216537",title:"Piedra Pizarra Natural Personalizada con Flores – Boda, Bautizo, Comunión",price:"20.90",url:"https://demoiatoi.com/products/piedra-con-texto-y-flores-naturales",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/piedra-con-texto-y-flores-preservadas-de-moi-a-toi-regalos-548615.jpg_turbo_06aa2849-398f-4d99-862e-e9889eb2e721.webp",cat:"Madera",tags:["boda","bautizo","comunión","flores","piedra","pizarra","personalizada","madrina","padrino","eco"]},
+  {id:"8113567629529",title:"Llavero de madera personalizado con inicial grabado a láser",price:"4.90",url:"https://demoiatoi.com/products/llavero-de-madera-inicial-grabada",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/llavero-de-madera-inicial-grabada-de-moi-a-toi-regalos_3ffe8576-132a-4ac4-956f-79de99a55d28.webp",cat:"Madera",tags:["boda","bautizo","comunión","llavero","madera","inicial","personalizado","detalle"]},
+  {id:"9038475919697",title:"Llavero de madera personalizado con inicial y nombre grabado",price:"5.99",url:"https://demoiatoi.com/products/llavero-de-madera-personalizado-con-inicial-y-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/llavero_inicial_con_nombre_tallado.webp",cat:"Madera",tags:["boda","bautizo","comunión","llavero","madera","inicial","nombre","personalizado"]},
+  {id:"8635984281937",title:"Marcasitio de Madera Circular Personalizado con Nombre",price:"3.50",url:"https://demoiatoi.com/products/marcasitio-madera-circular-personalizado-nombre-invitados",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/1_41767c69-99f6-425c-afd4-2d27a76a8acf.jpg_turbo.webp",cat:"Madera",tags:["boda","bautizo","comunión","marcasitio","madera","personalizado","invitados"]},
+  {id:"8888826397009",title:"Abridor personalizado bautizo y comunión – Detalle invitados",price:"4.50",url:"https://demoiatoi.com/products/abridor-madera-recordatorio-bautizo-comunion",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/abridor_macizo_real_2.png",cat:"Madera",tags:["bautizo","comunión","boda","abridor","madera","personalizado","detalle","invitados"]},
+  {id:"9308968354129",title:"Espejo de bambú personalizado boda – Detalle invitadas elegante",price:"4.90",url:"https://demoiatoi.com/products/espejo-de-madera-de-madera-invitadas-boda",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/ESPEJO_BODA_invitadas.webp",cat:"Madera",tags:["boda","espejo","bambú","personalizado","detalle","invitadas","mujer"]},
+  {id:"9309273194833",title:"Abridor de bambú personalizado con imán – Detalle invitados boda",price:"4.99",url:"https://demoiatoi.com/products/abridor-iman-personalizado-boda",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/abridor-boda-natural-invitados.webp",cat:"Madera",tags:["boda","abridor","bambú","imán","personalizado","detalle","invitados","hombre"]},
+  // ── LÁMPARAS LED ──
+  {id:"9038193131857",title:"Lámpara LED personalizada para mamá con dedicatoria",price:"29.90",url:"https://demoiatoi.com/products/lampara-led-personalizada-para-regalar-a-madre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/lampara_en_caja_de_regalo_mama.png",cat:"Lámparas LED",tags:["madre","mamá","lámpara","led","personalizada","dedicatoria","día madre","regalo","cumpleaños"]},
+  {id:"9252742857041",title:"Lámpara LED corazón personalizada con nombres – Regalo romántico boda",price:"29.90",url:"https://demoiatoi.com/products/lampara-led-corazon-personalizada-nombres",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/lampara-led-grabado-laser-corazon-regalo-original-demoiatoi.webp",cat:"Lámparas LED",tags:["boda","pareja","lámpara","led","corazón","personalizada","romántica","aniversario"]},
+  {id:"9252762878289",title:"Lámpara LED Redonda Silueta enamorados para bodas",price:"29.90",url:"https://demoiatoi.com/products/lampara-led-novios-personalizada-iniciales",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/lampara-led-novios-personalizada-iniciales-demoiatoi.webp",cat:"Lámparas LED",tags:["boda","novios","lámpara","led","silueta","personalizada","iniciales"]},
+  {id:"9794688090449",title:"Lámpara LED Globo infantil personalizada con nombre",price:"29.90",url:"https://demoiatoi.com/products/lampara-led-personalizada-globo-con-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/LAMPARA_GLOBO_INFANTIL.webp",cat:"Lámparas LED",tags:["bebé","infantil","niño","lámpara","led","globo","personalizada","cumpleaños","comunión","bautizo"]},
+  // ── JUEGOS DE MADERA ──
+  {id:"8774160482641",title:"Pack juegos de madera personalizados para invitados infantiles",price:"7.00",url:"https://demoiatoi.com/products/pack-detalles-infantiles-personalizados",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/set-regalo-madera-infantil.jpg_turbo.webp",cat:"Juegos de madera",tags:["boda","bautizo","comunión","juegos","madera","infantil","detalle","invitados","personalizado"]},
+  {id:"9309441786193",title:"3 en raya personalizado invitados – Juego de madera grabado",price:"4.95",url:"https://demoiatoi.com/products/3-en-raya-personalizado-invitados",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/detalle-boda-3-en-raya-personalizado.webp",cat:"Juegos de madera",tags:["boda","bautizo","comunión","3 en raya","juego","madera","personalizado","detalle"]},
+  {id:"9297143103825",title:"Yoyo de madera personalizado para invitados",price:"3.90",url:"https://demoiatoi.com/products/yoyo-personalizado-invitados",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/YOYOS_madera_invitados.webp",cat:"Juegos de madera",tags:["boda","bautizo","comunión","yoyo","juego","madera","personalizado","detalle","niños"]},
+  {id:"9445654266193",title:"Imán de madera para colorear infantil – Animalitos",price:"4.20",url:"https://demoiatoi.com/products/iman-de-madera-para-colorear-infantil",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/f97LaKHLMa7LitkP_IuNkAg_1_gps_generated.webp",cat:"Juegos de madera",tags:["bautizo","boda","comunión","imán","colorear","madera","animalitos","infantil","detalle"]},
+  // ── ROPA BEBÉ ──
+  {id:"7993792495833",title:"Body bebé personalizado boda «Yo estuve» – Animalitos",price:"19.90",url:"https://demoiatoi.com/products/body-personalizado-estuve-boda-animalitos",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/body-yo-estuve-en-la-boda-animalitos-disenos-de-moi-a-toi-regalos-294122.jpg_turbo_67e2930f-ff28-4728-8220-5a549afb19e5.webp",cat:"Ropa bebé",tags:["boda","bebé","body","personalizado","embarazada","infantil","animalitos"]},
+  {id:"8602642186577",title:"Babero personalizado «Yo estuve en...» – Animalitos",price:"14.90",url:"https://demoiatoi.com/products/babero-personalizado-yo-estuve",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/babero-yo-estuve-en-la-boda-animalitos-disenos-de-moi-a-toi-regalos-489595.jpg_turbo_c4f5cc93-b314-4ec2-93b0-3cd7dd8238d2.webp",cat:"Ropa bebé",tags:["boda","babero","bebé","personalizado","animalitos","embarazada","invitados"]},
+  {id:"8792913150289",title:"Body personalizado «¿Quieres ser mi madrina?» con foto",price:"19.90",url:"https://demoiatoi.com/products/body-quieres-ser-mi-madrina",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/MADRINA-body-regalo-bebe-foto.webp",cat:"Ropa bebé",tags:["bautizo","bebé","body","madrina","personalizado","foto","regalo","infantil"]},
+  // ── ESCRITURA Y ECOLÓGICOS ──
+  {id:"8095739969753",title:"Bolígrafo bambú grabado a láser – Detalle invitados",price:"2.15",url:"https://demoiatoi.com/products/boligrafo-bambu-personalizado-invitados",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/bol_grafo_de_madera_personalizado.webp",cat:"Escritura",tags:["boda","bautizo","comunión","bolígrafo","bambú","láser","personalizado","detalle","eco"]},
+  {id:"8096516833497",title:"Lápices de Madera Personalizados con Nombre de colores",price:"2.75",url:"https://demoiatoi.com/products/lapiz-madera-personalizado-con-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/lapices_turbo_943f6a8e-62a3-4b99-93b7-f531b1b4c255.webp",cat:"Escritura",tags:["boda","bautizo","comunión","lápiz","madera","personalizado","detalle","infantil"]},
+  {id:"8621611811153",title:"Libreta personalizada bambú A5 con bolígrafo – Regalo sostenible",price:"19.90",url:"https://demoiatoi.com/products/set-libreta-y-boligrafo-de-bambu-personalizada",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/libreta_de_madera_personalizada.webp",cat:"Escritura",tags:["maestra","profe","fin de curso","libreta","bambú","bolígrafo","sostenible","personalizada","eco"]},
+  {id:"7660727927001",title:"Cuaderno corcho personalizado con bolígrafo – Regalo sostenible maestros",price:"24.90",url:"https://demoiatoi.com/products/cuaderno-personalizado-con-nombre-corcho-sostenible-profe",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/1772367016475.png",cat:"Escritura",tags:["maestra","profe","fin de curso","cuaderno","corcho","sostenible","personalizado","eco"]},
+  // ── ACEITE DE OLIVA ──
+  {id:"9327619309905",title:"Latas de aceite personalizadas con diseño natural – Boda/Bautizo/Comunión",price:"4.90",url:"https://demoiatoi.com/products/latas-aceite-personalizadas-diseno-natural",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/disenos_naturales.png",cat:"Aceite",tags:["boda","bautizo","comunión","aceite","lata","personalizada","detalle","gourmet","natural","invitados"]},
+  {id:"9826729623889",title:"Latas de aceite personalizadas comunión niño rezando azul acuarela",price:"4.90",url:"https://demoiatoi.com/products/latas-aceite-personalizadas-comunion-nino-rezando-azul",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/aceite_azul_acuarela_nino.png",cat:"Aceite",tags:["comunión","aceite","lata","personalizada","detalle","niño","gourmet","invitados"]},
+  {id:"9844309557585",title:"Latas de aceite personalizadas comunión niña flores SOFT",price:"4.90",url:"https://demoiatoi.com/products/latas-aceite-personalizadas-comunion-nina-flores-suaves",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/aceite_soft.png",cat:"Aceite",tags:["comunión","aceite","lata","personalizada","detalle","niña","flores","gourmet"]},
+  // ── SETS REGALO ──
+  {id:"8800862667089",title:"Set de regalo comunión – Taza y hucha diseño Marinero",price:"29.90",url:"https://demoiatoi.com/products/kit-regalo-comunion-hucha-y-taza",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/MARINERO1.jpg_turbo.webp",cat:"Sets regalo",tags:["comunión","set","regalo","taza","hucha","marinero","niño","personalizado"]},
+  {id:"9148372648273",title:"Set Regalo Profesora – Kit de Fieltro Fin de Curso",price:"69.90",url:"https://demoiatoi.com/products/set-regalo-profesora-personalizado-fin-de-curso-fieltro",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/fieltro-26-profe-flores_2.png",cat:"Sets regalo",tags:["maestra","profe","fin de curso","set","regalo","fieltro","personalizado","flores","premium"]},
+  {id:"9217120862545",title:"Set regalo profesor económico – Regalo fin de curso personalizado",price:"29.90",url:"https://demoiatoi.com/products/set-economico-unisex-para-profesores",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/Set_regalo_fieltro_eco.png",cat:"Sets regalo",tags:["maestra","profe","fin de curso","set","regalo","fieltro","personalizado","económico"]},
+  {id:"9254992052561",title:"Set de regalo para mujer en fieltro y piel – Personalizado con nombre",price:"42.00",url:"https://demoiatoi.com/products/set-regalo-mujer-fieltro-piel-personalizado",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/set-fieltro-nombre-elegante.webp",cat:"Sets regalo",tags:["mujer","madre","amiga","set","regalo","fieltro","piel","personalizado","bolso","cumpleaños","navidad"]},
+  // ── FIGURAS DE TARTA ──
+  {id:"6444876857495",title:"Photocall – Figura de Boda para tarta",price:"20.00",url:"https://demoiatoi.com/products/photocall-figura-de-boda",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/photocall-figura-de-boda-de-moi-a-toi-regalos-808448.jpg_turbo.webp",cat:"Figuras de tarta",tags:["boda","figura","tarta","photocall","original","divertida"]},
+  {id:"6444895502487",title:"Cigüeña – Figura de bautizo para tarta",price:"3.50",url:"https://demoiatoi.com/products/figura-de-tarta-bebe",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/ciguena-figura-de-bautizo-de-moi-a-toi-regalos-512768.jpg_turbo.webp",cat:"Figuras de tarta",tags:["bautizo","figura","tarta","bebé","infantil","azul","rosa"]},
+  // ── JOYAS ARTESANALES ──
+  {id:"8106478731481",title:"Conjunto artesanal AMOR – Collar, pendientes y anillo de corazón rojo",price:"24.90",url:"https://demoiatoi.com/products/conjunto-artesanal-amor-corazon-rojo",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/conjunto-artesanal-amor-corazon-rojo-demoiatoi.webp",cat:"Joyas",tags:["amigas","amigo invisible","madre","joyas","collar","pendientes","artesanal","amor","regalo"]},
+  {id:"8138674995417",title:"Collar con hoja natural galvanizada – Joya artesanal",price:"7.50",url:"https://demoiatoi.com/products/collar-hoja-natural-galvanizada",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/collar-hoja-natural-galvanizada-demoiatoi.webp",cat:"Joyas",tags:["amigas","amigo invisible","madre","joyas","collar","hoja","natural","artesanal","regalo"]},
+  {id:"9477674008913",title:"Joyero portátil personalizado con nombre – Regalo original",price:"10.50",url:"https://demoiatoi.com/products/joyero-portatil-personalizado-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/joyero-turquesa-personalizado-demoiatoi_2b81456b-44f5-4c0e-8859-0088e0f61fd7.webp",cat:"Joyas",tags:["mujer","joyero","portátil","personalizado","regalo","original","adolescente"]},
+  // ── AZULEJOS Y FOTOS ──
+  {id:"8082277236953",title:"Azulejo personalizado con foto y caballete de madera",price:"12.90",url:"https://demoiatoi.com/products/azulejo-personalizado-foto-caballete-madera",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/azulejo-personalizado-foto-caballete-madera_9b185478-fda6-44dc-af88-c989873a667f.webp",cat:"Regalos con foto",tags:["boda","bautizo","comunión","foto","azulejo","caballete","madera","personalizado","decoración"]},
+  // ── VELAS ──
+  {id:"8905828041041",title:"Vela personalizada boda invitados – Detalle aromático elegante",price:"7.50",url:"https://demoiatoi.com/products/vela-personalizada-boda",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/VELA_BODA-personalizada-madera-y-foto.jpg",cat:"Velas",tags:["boda","vela","aromática","personalizada","detalle","invitados","elegante","madera"]},
+  // ── BOLSAS DE TELA ──
+  {id:"7972655104217",title:"Bolsa de Tela Personalizada – Invitados Boda, Bautizo, Comunión",price:"6.00",url:"https://demoiatoi.com/products/bola-tela-personalizada-boda-barata",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/Bolsa_personalizada_nuestro_dia.webp",cat:"Bolsas",tags:["boda","bautizo","comunión","bolsa","tela","personalizada","invitados","económico"]},
+  // ── NAVIDAD ──
+  {id:"7160445534359",title:"Bola de navidad personalizada con nombre 6cm",price:"3.90",url:"https://demoiatoi.com/products/bola-de-navidad-personalizada-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/bola-de-navidad-personalizada-con-nombre-6cm-de-moi-a-toi-regalos-822925.jpg_turbo.webp",cat:"Navidad",tags:["navidad","bola","personalizada","nombre","decoración","amigo invisible"]},
+  {id:"8798178640209",title:"Saco Reyes Magos personalizado con nombre",price:"25.00",url:"https://demoiatoi.com/products/saco-papa-noel-personalizado",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/saco_de_regalos_personalizado_b7d32dac-978b-432b-9b86-9c0e57769be0.webp",cat:"Navidad",tags:["navidad","saco","papá noel","reyes magos","personalizado","niño","niña","nombre"]},
+  {id:"8833331757393",title:"Estrella de navidad grabada en piedra pizarra",price:"4.50",url:"https://demoiatoi.com/products/estrella-de-navidad-grabada-en-piedra-pizarra",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/a.jpg_turbo.webp",cat:"Navidad",tags:["navidad","estrella","pizarra","personalizada","amigo invisible","decoración","empresa"]},
+  // ── LAPICERO MADERA ──
+  {id:"9103601107281",title:"Lapicero de madera con nombre en acrílico infantil",price:"12.50",url:"https://demoiatoi.com/products/lapicero-madera-personalizado-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/lapicero-nombre-tallado_8087679e-bd8b-4d16-a2a9-ebf1fd67385c.webp",cat:"Escritura",tags:["comunión","bautizo","cumpleaños","lapicero","madera","nombre","acrílico","personalizado","infantil","fin de curso"]},
+  // ── ALTAVOZ ──
+  {id:"7664616669401",title:"Altavoz Bluetooth Personalizado con Nombre – Niños y Adolescentes",price:"9.90",url:"https://demoiatoi.com/products/altavoz-bluetooth-con-nombre",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/ALTAVOZ_PERSONALIZADO_CON_NOMBRE.jpg_turbo.webp",cat:"Originales",tags:["adolescente","niño","comunión","cumpleaños","altavoz","bluetooth","personalizado","original"]},
+  // ── RITUAL ARENA ──
+  {id:"8740206739793",title:"Ritual de la arena para boda – Personalizado",price:"20.00",url:"https://demoiatoi.com/products/ritual-arena-boda-personalizado",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/ritual-economico-boda.jpg",cat:"Rituales boda",tags:["boda","ritual","arena","personalizado","ceremonia","simbólica","original"]},
+  // ── DECORACIÓN CELEBRACIÓN ──
+  {id:"9327252046161",title:"Latas de aceite personalizadas boda – diseño natural",price:"4.90",url:"https://demoiatoi.com/products/latas-aceite-personalizadas-diseno-natural",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/disenos_naturales.png",cat:"Decoración",tags:["boda","decoración","lata","aceite","personalizada"]},
+  {id:"9368027922769",title:"Cartel candy bar personalizado – Diseño Vichy",price:"14.90",url:"https://demoiatoi.com/products/cartel-candy-bar-personalizado-vichy",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/vichy.jpg_turbo_afdc5fa2-8931-4d2c-915d-1400c424b9da.webp",cat:"Decoración",tags:["boda","bautizo","comunión","cartel","candy bar","vichy","decoración","mesa dulce"]},
+  {id:"9309441786193",title:"3 en raya personalizado navidad",price:"4.95",url:"https://demoiatoi.com/products/3-en-raya-grabado-a-laser-para-navidad",img:"https://cdn.shopify.com/s/files/1/0517/6423/2343/files/CAMPER-LUCAS-_3_en_raya_-_juego_de_madera.jpg_turbo.webp",cat:"Navidad",tags:["navidad","3 en raya","juego","madera","personalizado","empresa","detalle"]},
+];
+
+// Build keyword index
+function searchProducts(query, maxResults = 4) {
+  const q = query.toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');
+  const words = q.split(/\s+/).filter(w => w.length > 2);
+  
+  const scored = CATALOG.map(p => {
+    let score = 0;
+    const haystack = (p.title + ' ' + p.tags.join(' ') + ' ' + p.cat).toLowerCase()
+      .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');
+    for (const w of words) {
+      if (haystack.includes(w)) score += w.length; // longer word = more specific match
+    }
+    return { ...p, score };
+  }).filter(p => p.score > 0);
+
+  scored.sort((a,b) => b.score - a.score);
+  return scored.slice(0, maxResults);
+}
+
+// Build system prompt - pass catalog as structured knowledge
+function buildSystemPrompt() {
+  // Group catalog by category for the prompt
+  const byCategory = {};
+  CATALOG.forEach(p => {
+    if (!byCategory[p.cat]) byCategory[p.cat] = [];
+    byCategory[p.cat].push(`  • "${p.title}" | Desde ${p.price}€ | ID:${p.id}`);
+  });
+  
+  const catalogText = Object.entries(byCategory).map(([cat, prods]) =>
+    `**${cat}:**\n${prods.join('\n')}`
+  ).join('\n\n');
+
+  return `Eres ${agentConfig.name}, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española especializada en regalos personalizados para celebraciones: bodas, bautizos, comuniones, cumpleaños, fin de curso, Navidad y más.
+
+Tu misión: ayudar al cliente a encontrar el regalo o detalle perfecto de forma natural, honesta y cálida.
+
+## TU PERSONALIDAD
+- Cercana y genuina, como una amiga que conoce perfectamente la tienda
+- Haces preguntas para entender bien qué necesitan
+- Cuando recomiendas, explicas brevemente POR QUÉ ese producto encaja
+- No presionas ni usas lenguaje de vendedor agresivo
+- Usas emojis con moderación, solo cuando aportan calidez
+
+## CATÁLOGO COMPLETO DE LA TIENDA
+
+${catalogText}
+
+## POLÍTICA DE ENVÍOS
+${agentConfig.shipping}
+
+## POLÍTICA DE DEVOLUCIONES
+${agentConfig.returns}
+
+## INFORMACIÓN ADICIONAL
+${agentConfig.extra}
+
+## CÓMO RECOMENDAR PRODUCTOS
+Cuando el cliente te describa su necesidad, recomienda entre 1 y 3 productos que realmente encajen. Sé selectivo — elige los mejores, no los listes todos.
+
+Para mostrar productos, incluye al final de tu respuesta este bloque (sin markdown, sin backticks):
+PRODUCTOS_JSON:[{"id":"ID","razon":"Explicación corta de por qué este producto"}]
+
+Si no hay productos relevantes, no pongas el JSON. Si el cliente pregunta por algo que no tienes, díselo honestamente y sugiere lo más cercano.
+
+## ESTADO DE PEDIDO
+Si el cliente pregunta por el estado de su pedido, dile exactamente esto:
+"¡Claro! Puedes consultar el estado de tu pedido en tiempo real aquí: https://demoiatoi.com/pages/estado-de-pedido — solo necesitas introducir tu email o número de pedido 📦"
+
+## INCIDENCIAS Y PROBLEMAS
+Si el cliente tiene una incidencia (error en el pedido, problema con la entrega, quiere cambiar la dirección de entrega, producto dañado, o cualquier otro problema), sé empático, pídele que te cuente qué ha pasado y luego dile:
+"Lamentamos mucho lo ocurrido 😔 Para resolverlo lo antes posible, escríbenos a contacto@demoiatoi.es indicando:
+- Tu número de pedido
+- El problema concreto
+[repite aquí el problema que te ha contado para que lo tenga listo para copiar]
+Nuestro equipo te responderá en menos de 24h."
+
+## FECHAS DE ENTREGA — MUY IMPORTANTE
+Nunca confirmes una fecha de entrega por tu cuenta. Siempre que un cliente pregunte si algo llega a tiempo, sigue estas reglas:
+
+- **Más de 2 semanas de margen:** Puedes decir que normalmente no hay problema para pedidos estándar, pero que Andrea lo confirmará. Invita a contactar a contacto@demoiatoi.es para confirmar.
+- **1 semana de margen:** Territorio delicado. Di que necesitas consultarlo con Andrea antes de confirmar y pide al cliente que escriba a contacto@demoiatoi.es o use el botón "Hablar con Andrea".
+- **Menos de 2 días:** Explica siempre que el transporte tarda 24h pudiendo demorarse hasta 48h, que en caso de incidencia con el transporte la empresa no puede hacerse responsable ya que no depende de ellos, y que deben contactar urgentemente con Andrea para ver si es viable.
+- **Cualquier duda sobre plazos:** No confirmes nunca. Di siempre: "Para confirmar si llegamos a tiempo con tu pedido necesito consultarlo con Andrea, ya que depende del stock y la producción en ese momento. ¿Puedes escribirnos a contacto@demoiatoi.es o usar el botón de abajo para hablar con ella directamente?"
+
+## PERSONALIZACIÓN Y DISEÑO
+Cuando alguien pregunte por personalización de un producto, primero revisa el catálogo y explica las opciones disponibles para ese producto (nombre, fecha, texto, colores disponibles en catálogo, etc.). Sé útil y detallada.
+
+Solo deriva a Andrea si:
+- El cliente pide algo que NO está en las opciones del catálogo (diseño completamente a medida, cambiar formas, ilustraciones especiales, etc.)
+- El cliente quiere cambiar el diseño de un pedido YA REALIZADO
+
+En esos casos di: "Para eso necesito que hable con Andrea directamente — ella te asesora y confirma si es posible 🎨 Puedes usar el botón de abajo o escribir a contacto@demoiatoi.es"
+
+Para todo lo demás de personalización estándar, ayuda tú misma con toda la información del catálogo.
+
+## PACKS DE REGALO CON VARIOS ARTÍCULOS
+Si un cliente quiere hacer un pack combinando varios productos de la tienda, no digas que no es posible. Explica que puede añadir cada producto por separado al carrito y en el campo "Notas del pedido" escribir: "Pack regalo: empaquetar juntos por favor". Nuestro equipo lo preparará junto con un packaging especial. Es un servicio que ofrecemos con mucho gusto.
+
+## CUANDO NO SABES ALGO
+Si te preguntan algo que no sabes o no tienes información suficiente para responder con seguridad, NO inventes. Di exactamente: "Espera un momento, voy a consultarlo con Andrea para darte la información correcta 🙏" y nada más. Esto activará una alerta para que Andrea responda directamente.
+
+## SI ANDREA ENTRA EN LA CONVERSACIÓN
+Cuando Andrea se una al chat, debes retirarte educadamente. Di: "Os dejo con Andrea, que os atenderá directamente 😊 Si me necesitáis de nuevo, estoy aquí." Y no respondas más en esa conversación hasta que Andrea te ceda el turno escribiendo "Sofía, continúa".
+
+## REGLAS IMPORTANTES
+- NUNCA inventes productos o precios que no estén en el catálogo
+- NUNCA confirmes fechas de entrega — siempre deriva a Andrea
+- NUNCA gestiones cambios de diseño — siempre deriva a Andrea
+- Si no sabes algo, di que vas a consultar — NO inventes
+- Responde siempre en español
+- Tus respuestas son concisas (3-5 frases) salvo que el cliente pida más detalle
+- URL de producto siempre: https://demoiatoi.com/products/[handle]`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════
+function getTime() {
+  return new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+}
+
+function renderBubble(role, content) {
+  const area = document.getElementById("messagesArea");
+  const row = document.createElement("div");
+  row.className = `bubble-row ${role}`;
+
+  let cleanContent = content;
+  let products = [];
+
+  if (role === "agent") {
+    const m = content.match(/PRODUCTOS_JSON:(\[[\s\S]*?\])/);
+    if (m) {
+      cleanContent = content.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
+      try {
+        const refs = JSON.parse(m[1]);
+        products = refs.map(r => {
+          const p = CATALOG.find(x => x.id === r.id);
+          return p ? {...p, razon: r.razon} : null;
+        }).filter(Boolean);
+      } catch(e) {}
+    }
+  }
+
+  let cardsHtml = "";
+  if (products.length) {
+    cardsHtml = '<div class="product-cards">' + products.map(p => `
+      <a class="product-card" href="${p.url}" target="_blank">
+        <img src="${p.img}" alt="${p.title}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2252%22 height=%2252%22><rect width=%2252%22 height=%2252%22 fill=%22%23f0e6d8%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2222%22>🎁</text></svg>'">
+        <div class="pc-info">
+          <div class="pc-name">${p.title}</div>
+          <div class="pc-price">Desde ${p.price}€</div>
+          ${p.razon ? `<div class="pc-why">${p.razon}</div>` : ''}
+          <span class="pc-cta">Ver producto →</span>
+        </div>
+      </a>`).join('') + '</div>';
+  }
+
+  const msgHtml = cleanContent.replace(/\n/g, "<br>");
+  const avatarEmoji = role === "agent" ? "🎁" : "👤";
+  row.innerHTML = `
+    <div class="bubble-avatar">${avatarEmoji}</div>
+    <div>
+      <div class="bubble">${msgHtml}${cardsHtml}</div>
+      <div class="bubble-time">${getTime()}</div>
+    </div>`;
+  area.appendChild(row);
+  area.scrollTop = area.scrollHeight;
+}
+
+function renderQuickReplies(replies) {
+  const area = document.getElementById("messagesArea");
+  const wrap = document.createElement("div");
+  wrap.className = "quick-replies";
+  wrap.id = "quickReplies";
+  replies.forEach(r => {
+    const btn = document.createElement("button");
+    btn.className = "qr-btn";
+    btn.textContent = r;
+    btn.onclick = () => {
+      wrap.remove();
+      if (r === '💬 Hablar con Andrea') { showAndreaModal(); return; }
+      sendUserMessage(r);
+    };
+    wrap.appendChild(btn);
+  });
+  area.appendChild(wrap);
+  area.scrollTop = area.scrollHeight;
+}
+
+function showTyping() {
+  const area = document.getElementById("messagesArea");
+  const row = document.createElement("div");
+  row.className = "bubble-row agent";
+  row.id = "typingRow";
+  row.innerHTML = `<div class="bubble-avatar">🎁</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  area.appendChild(row);
+  area.scrollTop = area.scrollHeight;
+}
+function removeTyping() { document.getElementById("typingRow")?.remove(); }
+
+// ═══════════════════════════════════════════════════════════════
+//  API
+// ═══════════════════════════════════════════════════════════════
+async function callAPI(userMsg) {
+  conversationHistory.push({role:"user",content:userMsg});
+  const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":"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","anthropic-version":"2023-06-01"},
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6",
+      max_tokens:1000,
+      system: buildSystemPrompt(),
+      messages: conversationHistory,
+      conversation_id: window._convId || null,
+      customer_email: window._customerEmail || null,
+      customer_source: window._customerSource || null
+    })
+  });
+  if (!res.ok) throw new Error(res.status);
+  const data = await res.json();
+  const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
+  conversationHistory.push({role:"assistant",content:text});
+  return text;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SEND
+// ═══════════════════════════════════════════════════════════════
+async function sendUserMessage(text) {
+  if (!text.trim() || isTyping) return;
+  _lastActivityTime = Date.now();
+  isTyping = true;
+  document.getElementById("quickReplies")?.remove();
+  renderBubble("user", text);
+  const inp = document.getElementById("chatInput");
+  inp.value = ""; inp.style.height = "";
+  document.getElementById("sendBtn").disabled = true;
+  showTyping();
+  try {
+    const reply = await callAPI(text);
+    removeTyping();
+    _lastActivityTime = Date.now();
+    // Si Andrea está activa, no mostrar respuesta de Sofía
+    if (!_andreaActive) renderBubble("agent", reply);
+  } catch(e) {
+    removeTyping();
+    renderBubble("agent","¡Ups! Problema de conexión. Inténtalo de nuevo o escríbenos a contacto@demoiatoi.es 💛");
+  }
+  document.getElementById("sendBtn").disabled = false;
+  isTyping = false;
+}
+
+function sendMessage() {
+  sendUserMessage(document.getElementById("chatInput").value.trim());
+}
+function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
+
+function saveConfig() {
+  agentConfig.name     = document.getElementById("cfgName").value.trim() || "Sofía";
+  agentConfig.shipping = document.getElementById("cfgShipping").value.trim();
+  agentConfig.returns  = document.getElementById("cfgReturns").value.trim();
+  agentConfig.extra    = document.getElementById("cfgExtra").value.trim();
+  document.getElementById("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
+  conversationHistory = [];
+  document.getElementById("messagesArea").innerHTML = "";
+  initChat();
+  alert(`✅ Guardado. El agente ahora se llama "${agentConfig.name}" y tiene la configuración actualizada.`);
+}
+
+function copyEmbed() {
+  navigator.clipboard.writeText(document.getElementById("embedCode").textContent).then(() => {
+    const btn = document.getElementById("copyBtn");
+    btn.textContent = "✅ ¡Copiado!";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "📋 Copiar código"; btn.classList.remove("copied"); }, 2500);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+let _selectedSource = null;
+let _selectedStar = 0;
+
+function goToStep2() {
+  const email = document.getElementById('emailInput').value.trim();
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(email)) {
+    document.getElementById('emailError').style.display = 'block';
+    return;
+  }
+  window._customerEmail = email;
+  document.getElementById('gateStep1').classList.remove('active');
+  document.getElementById('gateStep2').classList.add('active');
+}
+
+function selectSource(btn, source) {
+  _selectedSource = source;
+  document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const submitBtn = document.getElementById('sourceSubmit');
+  submitBtn.style.opacity = '1';
+  submitBtn.style.pointerEvents = 'auto';
+}
+
+function submitSource() {
+  const email = window._customerEmail;
+  window._customerSource = _selectedSource;
+  try {
+    sessionStorage.setItem('dmat_email', email);
+    document.cookie = `dmat_email=${email};max-age=86400;path=/`;
+    fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(email)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
+    }).then(r=>r.json()).then(data => {
+      if (data && data.length > 0) {
+        window._convId = data[0].id;
+        sessionStorage.setItem('dmat_conv_id', window._convId);
+        document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
+      }
+      showChat();
+    }).catch(() => showChat());
+  } catch(e) { showChat(); }
+}
+
+function setStar(n) {
+  _selectedStar = n;
+  document.querySelectorAll('.star').forEach((s,i) => {
+    s.classList.toggle('active', i < n);
+  });
+}
+
+function submitRating() {
+  if (_selectedStar === 0) return;
+  const comment = document.getElementById('ratingComment').value.trim();
+  if (window._convId) {
+    fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ rating: _selectedStar, rating_comment: comment, status: 'resolved' })
+    });
+  }
+  document.querySelector('.rating-box').innerHTML = '<div class="rating-icon">💛</div><div class="rating-thanks">¡Gracias por tu valoración! Nos ayuda mucho a mejorar.</div>';
+  setTimeout(() => { document.getElementById('ratingOverlay').classList.remove('show'); }, 2000);
+}
+
+function skipRating() {
+  document.getElementById('ratingOverlay').classList.remove('show');
+}
+
+function showRating() {
+  document.getElementById('ratingOverlay').classList.add('show');
+}
+
+async function showChat() {
+  document.getElementById('emailGate').style.display = 'none';
+  document.getElementById('messagesArea').style.display = 'flex';
+  document.getElementById('inputArea').style.display = 'block';
+
+  // Si hay conversación previa, cargar los últimos mensajes
+  if (window._convId) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&order=created_at.asc&limit=30`,
+        { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+      )
+      const msgs = await res.json()
+      if (msgs && msgs.length > 0) {
+        // Reconstruir historial para el contexto de la IA
+        conversationHistory = msgs
+          .filter(m => !m.is_from_andrea && m.content !== 'sofia_resume')
+          .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+
+        // Mostrar los últimos 6 mensajes visualmente
+        const lastMsgs = msgs.slice(-6)
+        const area = document.getElementById('messagesArea')
+        if (lastMsgs.length > 0) {
+          const divider = document.createElement('div')
+          divider.style.cssText = 'text-align:center;font-size:.72rem;color:var(--warm-gray);padding:8px 0;opacity:.7'
+          divider.textContent = '— Conversación anterior —'
+          area.appendChild(divider)
+        }
+        lastMsgs.forEach(m => {
+          if (m.content === 'sofia_resume') return
+          if (m.is_from_andrea) {
+            renderAndreaBubble(m.content)
+          } else {
+            renderBubble(m.role === 'user' ? 'user' : 'agent', m.content)
+          }
+        })
+        // No mostrar saludo inicial si hay historial
+        return
+      }
+    } catch(e) {}
+  }
+
+  startChat();
+}
+
+function initChat() {
+  // Si ya tiene email guardado, ir directo al chat
+  if (window._customerEmail) {
+    showChat();
+    return;
+  }
+  // Si no, mostrar email gate
+}
+
+function startChat() {
+  renderBubble("agent", `¡Hola! 👋 Soy ${agentConfig.name}, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? Cuéntame y te ayudo a encontrar el detalle perfecto 🎁`);
+  renderQuickReplies([
+    "🎁 Busco un regalo o detalle",
+    "📦 Estado de mi pedido",
+    "⚠️ Tengo una incidencia",
+    "💬 Hablar con Andrea"
+  ]);
+}
+
+
+function showAndreaModal() {
+  const modal = document.getElementById('andreaModal');
+  modal.style.display = 'flex';
+}
+function closeAndreaModal() {
+  document.getElementById('andreaModal').style.display = 'none';
+}
+function waitForAndrea() {
+  closeAndreaModal();
+  renderBubble("agent", "¡Perfecto! 👩‍💼 Andrea se unirá a esta conversación en breve. Puedes seguir escribiendo aquí y ella te responderá directamente.");
+}
+function contactAndreaEmail() {
+  closeAndreaModal();
+  window.open('mailto:contacto@demoiatoi.es?subject=Quiero%20hablar%20con%20Andrea&body=Hola%20Andrea%2C%20me%20pongo%20en%20contacto%20contigo%20desde%20el%20chat%20de%20la%20tienda.', '_blank');
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  // Recuperar email y conversación anterior si existe
+  try {
+    window._customerEmail = sessionStorage.getItem('dmat_email') ||
+      (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_email=')) || '').split('=')[1]?.trim() || null;
+    window._convId = sessionStorage.getItem('dmat_conv_id') ||
+      (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_conv=')) || '').split('=')[1]?.trim() || null;
+  } catch(e) {}
+  initChat()
+  setInterval(checkAndreaMessages, 5000)
+});
+</script>
+</body>
+</html>
