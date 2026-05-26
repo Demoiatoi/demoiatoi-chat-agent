@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   try {
-    const { messages, system, conversation_id, customer_email, customer_source } = req.body
+    const { messages, system, conversation_id, customer_email, customer_source, is_suggestion } = req.body
 
     let convId = conversation_id
 
@@ -85,8 +85,17 @@ module.exports = async function handler(req, res) {
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
-        content: assistantText
+        content: assistantText,
+        is_from_andrea: false
       })
+    }
+
+    // Si es sugerencia, quitar needs_attention
+    if (is_suggestion && convId) {
+      await supabase
+        .from('chat_conversations')
+        .update({ needs_attention: false, status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', convId)
     }
 
     // Detectar si necesita atención de Andrea
