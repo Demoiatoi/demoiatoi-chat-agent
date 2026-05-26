@@ -1059,14 +1059,24 @@ function contactAndreaEmail() {
 window.addEventListener("DOMContentLoaded", () => {
   // Recuperar email y conversación anterior si existe
   try {
-    window._customerEmail = sessionStorage.getItem('dmat_email') ||
-      (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_email=')) || '').split('=')[1]?.trim() || null;
-    window._convId = sessionStorage.getItem('dmat_conv_id') ||
-      (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_conv=')) || '').split('=')[1]?.trim() || null;
-  } catch(e) {}
-  initChat()
-  setInterval(checkAndreaMessages, 5000)
-});
+  window._customerEmail = sessionStorage.getItem('dmat_email') ||
+    (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_email=')) || '').split('=')[1]?.trim() || null;
+  window._convId = sessionStorage.getItem('dmat_conv_id') ||
+    (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_conv=')) || '').split('=')[1]?.trim() || null;
+  
+  // Si tiene email pero no convId, buscarlo en Supabase
+  if (window._customerEmail && !window._convId) {
+    fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(window._customerEmail)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
+    }).then(r=>r.json()).then(data => {
+      if (data && data.length > 0) {
+        window._convId = data[0].id;
+        sessionStorage.setItem('dmat_conv_id', window._convId);
+        document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
+      }
+    }).catch(()=>{});
+  }
+} catch(e) {}
 </script>
 </body>
 </html>
