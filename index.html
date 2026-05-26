@@ -437,9 +437,9 @@ async function checkAndreaMessages() {
       stopWaitingMessages()
     }
 
-    // Buscar nuevos mensajes de Andrea
+    // Buscar cualquier mensaje nuevo del agente o de Andrea en Supabase
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&is_from_andrea=eq.true&order=created_at.desc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&role=eq.assistant&order=created_at.desc&limit=1`,
       { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
     )
     const data = await res.json()
@@ -451,8 +451,12 @@ async function checkAndreaMessages() {
           _andreaActive = false
           stopWaitingMessages()
           renderBubble('agent', 'Hola de nuevo 😊 Andrea me ha pasado el testigo. ¿En qué más puedo ayudarte?')
-        } else {
+        } else if (last.is_from_andrea) {
           renderAndreaBubble(last.content)
+          _lastActivityTime = Date.now()
+        } else {
+          // Respuesta de Sofía tras sugerencia — mostrar siempre si es nuevo
+          renderBubble('agent', last.content)
           _lastActivityTime = Date.now()
         }
       }
@@ -1003,6 +1007,9 @@ async function showChat() {
             renderBubble(m.role === 'user' ? 'user' : 'agent', m.content)
           }
         })
+        // Guardar ID del último mensaje para que el polling solo muestre mensajes nuevos
+        const lastMsg = msgs[msgs.length - 1]
+        if (lastMsg) window._lastAndreaId = lastMsg.id
         // No mostrar saludo inicial si hay historial
         return
       }
