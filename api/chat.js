@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js')
 
-// Inicialización única de Supabase
+// Inicialización única de Supabase en el entorno seguro de Vercel
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -18,39 +18,64 @@ function detectsDoubt(text) {
   return DOUBT_SIGNALS.some(s => lower.includes(s))
 }
 
-// ── FUNCIÓN PARA OBTENER EL CATÁLOGO EN TIEMPO REAL DESDE SHOPIFY ──
+// ── FUNCIÓN PARA RECORRER TODO EL CATÁLOGO PAGINADO DE SHOPIFY ──
 async function fetchShopifyCatalog() {
   try {
-    // Consultamos el endpoint público de productos de tu Shopify (máximo 250)
-    const response = await fetch('https://demoiatoi.com/products.json?limit=250')
-    if (!response.ok) return ""
-    
-    const data = await response.json()
-    if (!data.products || data.products.length === 0) return ""
+    let allProducts = [];
+    let page = 1;
+    let keepFetching = true;
+    const limit = 250;
 
-    // Agrupamos y formateamos los productos por tipo/categoría para optimizar los tokens de Claude
-    const byCategory = {}
-    data.products.forEach(p => {
-      const cat = p.product_type || "Otros"
-      // Obtenemos el precio menor de sus variantes
-      const price = p.variants && p.variants.length > 0 ? p.variants[0].price : "Consultar"
+    // Bucle para descargar todas las páginas de tu catálogo de Shopify
+    while (keepFetching) {
+      const response = await fetch(`https://demoiatoi.com/products.json?limit=${limit}&page=${page}`);
+      if (!response.ok) {
+        keepFetching = false;
+        break;
+      }
       
-      if (!byCategory[cat]) byCategory[cat] = []
-      byCategory[cat].push(`  • "${p.title}" | Desde ${price}€ | ID:${p.id} | URL Handle: ${p.handle}`)
-    })
+      const data = await response.json();
+      
+      if (data.products && data.products.length > 0) {
+        allProducts = allProducts.concat(data.products);
+        
+        // Si nos devuelve menos del límite, es que llegamos al final
+        if (data.products.length < limit) {
+          keepFetching = false;
+        } else {
+          page++; // Avanzamos de página
+        }
+      } else {
+        keepFetching = false; // Página vacía
+      }
+      
+      // Control de seguridad para evitar bucles infinitos (máximo 1500 productos)
+      if (page > 6) keepFetching = false;
+    }
 
-    // Construimos el bloque de texto estructurado para el prompt
+    if (allProducts.length === 0) return "*(Catálogo vacío o no disponible en este momento)*";
+
+    // Agrupamos el catálogo completo recolectado por categorías
+    const byCategory = {};
+    allProducts.forEach(p => {
+      const cat = p.product_type || "Otros";
+      const price = p.variants && p.variants.length > 0 ? p.variants[0].price : "Consultar";
+      
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(`  • "${p.title}" | Desde ${price}€ | ID:${p.id} | URL Handle: ${p.handle}`);
+    });
+
     return Object.entries(byCategory).map(([cat, prods]) =>
       `**${cat}:**\n${prods.join('\n')}`
-    ).join('\n\n')
+    ).join('\n\n');
 
   } catch (error) {
-    console.error("Error obteniendo catálogo de Shopify:", error)
-    return "*(El catálogo en tiempo real no está disponible en este momento, ayuda al cliente con información general)*"
+    console.error("Error obteniendo catálogo paginado de Shopify:", error);
+    return "*(El catálogo en tiempo real no está disponible, ayuda al cliente con respuestas generales)*";
   }
 }
 
-// ── CONSTRUCTOR DEL SYSTEM PROMPT DINÁMICO ──
+// ── CONSTRUCTOR DEL SYSTEM PROMPT ──
 function buildSystemPrompt(catalogText, customShipping, customReturns, customExtra, agentName = "Sofía") {
   const shipping = customShipping || "Envío estándar: 3-5 días hábiles en España, 3,99€. Gratis a partir de 40€.";
   const returns = customReturns || "Aceptamos devoluciones en 14 días si el producto llega defectuoso.";
@@ -119,7 +144,7 @@ module.exports = async function handler(req, res) {
 
     let convId = conversation_id
 
-    // ── CREAR / RECUPERAR CONVERSACIÓN EN SUPABASE ──
+    // ── CREAR / RECUPERAR CONVERSACIÓN ──
     if (!convId) {
       if (customer_email) {
         const { data: existing } = await supabase
@@ -183,13 +208,13 @@ module.exports = async function handler(req, res) {
       }).eq('id', convId)
     }
 
-    // ── OBTENER EL CATÁLOGO EN TIEMPO REAL DESDE SHOPIFY ──
+    // ── OBTENER CATÁLOGO PAGINADO DESDE SHOPIFY ──
     const catalogText = await fetchShopifyCatalog();
 
-    // ── CONSTRUIR EL PROMPT DE FORMA SEGURA EN EL SERVIDOR ──
+    // ── PROMPT DE SISTEMA SEGURO EN EL SERVIDOR ──
     const baseSystem = buildSystemPrompt(catalogText, cfg_shipping, cfg_returns, cfg_extra, cfg_name);
 
-    // ── MODO SUGERENCIA DESDE EL PANEL DE CONTROL ──
+    // ── MODO SUGERENCIA DESDE PANEL ──
     if (is_suggestion && suggestion_text && convId) {
       const { data: history } = await supabase
         .from('chat_messages')
@@ -210,7 +235,7 @@ module.exports = async function handler(req, res) {
         ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO EN ESTE CHAT:\n${knowledgeItems.join('\n')}`
         : ''
 
-      const suggestionSystem = `${baseSystem}${knowledgeBlock}\n\nINSTRUCCIÓN PRIVADA DE ANDREA (aplícala inmediatamente para responder al cliente):\n${suggestion_text}`
+      const suggestionSystem = `${baseSystem}${knowledgeBlock}\n\nINSTRUCCIÓN PRIVADA DE ANDREA:\n${suggestion_text}`
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -245,7 +270,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ...data, conversation_id: convId })
     }
 
-    // ── MODO CHAT NORMAL CON EL CLIENTE ──
+    // ── MODO CHAT NORMAL ──
     const lastUserMsg = messages[messages.length - 1]
     if (convId && !is_suggestion) {
       await supabase.from('chat_messages').insert({
