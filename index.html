@@ -436,8 +436,7 @@ function renderAndreaBubble(text) {
     <div class="bubble-avatar" style="background:linear-gradient(135deg,#fde8e6,#e8837a)">👩‍💼</div>
     <div>
       <div style="font-size:.65rem;color:var(--warm-gray);margin-bottom:3px">Andrea</div>
-      <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.replace(/
-/g,'<br>')}</div>
+     <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.split('\n').join('<br>')}</div>
       <div class="bubble-time">${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>
     </div>`
   area.appendChild(row)
