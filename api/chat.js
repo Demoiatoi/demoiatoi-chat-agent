@@ -42,11 +42,11 @@ module.exports = async function handler(req, res) {
           .select()
           .single()
         console.log('newConv:', JSON.stringify(newConv))
-convId = newConv?.id
+        convId = newConv?.id
       }
     }
 
-    if (customer_email) {
+    if (customer_email && convId) {
       await supabase
         .from('chat_conversations')
         .update({ customer_email, updated_at: new Date().toISOString() })
@@ -55,11 +55,13 @@ convId = newConv?.id
 
     const lastUserMsg = messages[messages.length - 1]
 
-    await supabase.from('chat_messages').insert({
-      conversation_id: convId,
-      role: 'user',
-      content: lastUserMsg.content
-    })
+    if (convId) {
+      await supabase.from('chat_messages').insert({
+        conversation_id: convId,
+        role: 'user',
+        content: lastUserMsg.content
+      })
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -79,20 +81,25 @@ convId = newConv?.id
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
-    await supabase.from('chat_messages').insert({
-      conversation_id: convId,
-      role: 'assistant',
-      content: assistantText
-    })
+    if (convId) {
+      await supabase.from('chat_messages').insert({
+        conversation_id: convId,
+        role: 'assistant',
+        content: assistantText
+      })
+    }
 
+    // Detectar si necesita atención de Andrea
     const needsAttention =
       lastUserMsg.content.toLowerCase().includes('andrea') ||
       lastUserMsg.content.toLowerCase().includes('incidencia') ||
       lastUserMsg.content.toLowerCase().includes('problema') ||
       lastUserMsg.content.toLowerCase().includes('urgente') ||
-      lastUserMsg.content.toLowerCase().includes('no ha llegado')
+      lastUserMsg.content.toLowerCase().includes('no ha llegado') ||
+      assistantText.toLowerCase().includes('voy a consultarlo') ||
+      assistantText.toLowerCase().includes('espera un momento')
 
-    if (needsAttention) {
+    if (needsAttention && convId) {
       await supabase
         .from('chat_conversations')
         .update({ needs_attention: true, status: 'needs_review' })
