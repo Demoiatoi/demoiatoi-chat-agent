@@ -149,7 +149,7 @@ ${suggestion_text}`
       })
     }
 
-    // Detectar si necesita atención
+    // Detectar si necesita atención de Andrea
     const needsAttention =
       lastUserMsg.content.toLowerCase().includes('andrea') ||
       lastUserMsg.content.toLowerCase().includes('incidencia') ||
@@ -157,7 +157,14 @@ ${suggestion_text}`
       lastUserMsg.content.toLowerCase().includes('urgente') ||
       lastUserMsg.content.toLowerCase().includes('no ha llegado') ||
       assistantText.toLowerCase().includes('voy a consultarlo') ||
-      assistantText.toLowerCase().includes('espera un momento')
+      assistantText.toLowerCase().includes('espera un momento') ||
+      assistantText.toLowerCase().includes('habla con andrea') ||
+      assistantText.toLowerCase().includes('hables con andrea') ||
+      assistantText.toLowerCase().includes('contacta con andrea') ||
+      assistantText.toLowerCase().includes('andrea directamente') ||
+      assistantText.toLowerCase().includes('andrea te') ||
+      assistantText.toLowerCase().includes('andrea lo') ||
+      assistantText.toLowerCase().includes('andrea puede')
 
     if (needsAttention && convId) {
       await supabase
