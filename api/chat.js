@@ -5,6 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 )
 
+// Listado exacto de señales de duda de tu archivo original
 const DOUBT_SIGNALS = [
   'no estoy segura', 'no lo sé', 'no sé con certeza', 'debería consultarlo',
   'no tengo esa información', 'no puedo confirmar', 'te recomiendo contactar',
@@ -185,6 +186,7 @@ ${suggestion_text}`
 
     const finalSystem = system + knowledgeBlock
 
+    // Petición nativa limpia respetando la versión de tu API original
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -196,15 +198,16 @@ ${suggestion_text}`
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1000,
         system: finalSystem,
-        messages
+        messages: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content) }))
       })
     })
+    
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
     const hasDoubt = detectsDoubt(assistantText)
 
-    if (convId) {
+    if (convId && assistantText) {
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
@@ -212,18 +215,12 @@ ${suggestion_text}`
         is_from_andrea: false
       })
 
-      if (hasDoubt) {
-        await supabase.from('chat_conversations').update({
-          needs_attention: true,
-          needs_clarification: true,
-          alert_type: 'doubt',
-          updated_at: new Date().toISOString()
-        }).eq('id', convId)
-      } else {
-        await supabase.from('chat_conversations').update({
-          updated_at: new Date().toISOString()
-        }).eq('id', convId)
-      }
+      await supabase.from('chat_conversations').update({
+        needs_attention: hasDoubt,
+        needs_clarification: hasDoubt,
+        alert_type: hasDoubt ? 'doubt' : null,
+        updated_at: new Date().toISOString()
+      }).eq('id', convId)
     }
 
     return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt })
