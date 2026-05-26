@@ -410,9 +410,34 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 const SUPABASE_URL = 'https://tjsvgvcfddwbtnadxbhh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3ZndmNmZGR3YnRuYWR4YmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTMzMTYsImV4cCI6MjA5MzkyOTMxNn0.GtAOjajdcU1A_bSCGKuE3EyVKe5MTCk2dAytyu2s41g'
 
+let _andreaActive = false
+let _waitingTimer = null
+let _lastActivityTime = Date.now()
+
 async function checkAndreaMessages() {
   if (!window._convId) return
   try {
+    // Comprobar estado de la conversación
+    const convRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}&select=status`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    )
+    const convData = await convRes.json()
+    const status = convData?.[0]?.status
+
+    // Detectar si Andrea tomó el control
+    if (status === 'andrea_active' && !_andreaActive) {
+      _andreaActive = true
+      startWaitingMessages()
+    }
+
+    // Detectar si Sofía retoma
+    if (status === 'active' && _andreaActive) {
+      _andreaActive = false
+      stopWaitingMessages()
+    }
+
+    // Buscar nuevos mensajes de Andrea
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&is_from_andrea=eq.true&order=created_at.desc&limit=1`,
       { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
@@ -422,10 +447,40 @@ async function checkAndreaMessages() {
       const last = data[0]
       if (last.id !== window._lastAndreaId) {
         window._lastAndreaId = last.id
-        renderAndreaBubble(last.content)
+        if (last.content === 'sofia_resume') {
+          _andreaActive = false
+          stopWaitingMessages()
+          renderBubble('agent', 'Hola de nuevo 😊 Andrea me ha pasado el testigo. ¿En qué más puedo ayudarte?')
+        } else {
+          renderAndreaBubble(last.content)
+          _lastActivityTime = Date.now()
+        }
       }
     }
   } catch(e) {}
+}
+
+const waitingMessages = [
+  'Seguimos en ello, un momento más 🙏',
+  'Estamos consultando tu pregunta, enseguida te respondemos 😊',
+  'Gracias por tu paciencia, ya casi estamos 💛',
+  'Un segundo más, queremos darte la mejor respuesta 🎁'
+]
+let _waitingIdx = 0
+
+function startWaitingMessages() {
+  stopWaitingMessages()
+  _waitingTimer = setInterval(() => {
+    if (Date.now() - _lastActivityTime > 55000) {
+      renderBubble('agent', waitingMessages[_waitingIdx % waitingMessages.length])
+      _waitingIdx++
+      _lastActivityTime = Date.now()
+    }
+  }, 60000)
+}
+
+function stopWaitingMessages() {
+  if (_waitingTimer) { clearInterval(_waitingTimer); _waitingTimer = null }
 }
 
 function renderAndreaBubble(text) {
@@ -436,7 +491,8 @@ function renderAndreaBubble(text) {
     <div class="bubble-avatar" style="background:linear-gradient(135deg,#fde8e6,#e8837a)">👩‍💼</div>
     <div>
       <div style="font-size:.65rem;color:var(--warm-gray);margin-bottom:3px">Andrea</div>
-     <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.split('\n').join('<br>')}</div>
+      <div class="bubble" style="background:linear-gradient(135deg,#c05a52,#e8837a);color:white">${text.replace(/
+/g,'<br>')}</div>
       <div class="bubble-time">${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>
     </div>`
   area.appendChild(row)
@@ -783,6 +839,7 @@ async function callAPI(userMsg) {
 // ═══════════════════════════════════════════════════════════════
 async function sendUserMessage(text) {
   if (!text.trim() || isTyping) return;
+  _lastActivityTime = Date.now();
   isTyping = true;
   document.getElementById("quickReplies")?.remove();
   renderBubble("user", text);
@@ -793,7 +850,9 @@ async function sendUserMessage(text) {
   try {
     const reply = await callAPI(text);
     removeTyping();
-    renderBubble("agent", reply);
+    _lastActivityTime = Date.now();
+    // Si Andrea está activa, no mostrar respuesta de Sofía
+    if (!_andreaActive) renderBubble("agent", reply);
   } catch(e) {
     removeTyping();
     renderBubble("agent","¡Ups! Problema de conexión. Inténtalo de nuevo o escríbenos a contacto@demoiatoi.es 💛");
