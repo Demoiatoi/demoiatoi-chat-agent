@@ -20,13 +20,11 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .demo-header h1{font-family:var(--font-display);font-size:1.9rem;color:var(--dark);margin-bottom:8px}
 .demo-header h1 em{color:var(--rose);font-style:italic}
 .demo-header p{color:var(--warm-gray);font-size:.9rem;line-height:1.6}
-.embed-note{background:var(--sand);border-left:3px solid var(--rose);padding:12px 16px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:.82rem;color:var(--warm-gray);max-width:560px;margin-bottom:24px;width:100%}
-.embed-note code{background:rgba(232,131,122,.15);padding:2px 6px;border-radius:4px;font-size:.8rem;color:var(--rose-dark)}
 
 .chat-widget{width:100%;max-width:420px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow),0 2px 8px rgba(232,131,122,.15);display:flex;flex-direction:column;overflow:hidden;height:620px;position:relative}
 .chat-header{background:linear-gradient(135deg,var(--rose-dark) 0%,var(--rose) 100%);padding:18px 20px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .avatar-wrap{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:1.25rem;border:2px solid rgba(255,255,255,.4);flex-shrink:0;position:relative}
-.avatar-wrap::after{content:'';position:absolute;bottom:1px;right:1px;width:99px;height:9px;background:#4ade80;border-radius:50%;border:2px solid var(--rose);width:9px}
+.avatar-wrap::after{content:'';position:absolute;bottom:1px;right:1px;width:9px;height:9px;background:#4ade80;border-radius:50%;border:2px solid var(--rose)}
 .chat-header-info{flex:1;min-width:0}
 .chat-header-info strong{display:block;color:var(--white);font-size:.95rem;font-weight:600;font-family:var(--font-display)}
 .chat-header-info span{color:rgba(255,255,255,.78);font-size:.75rem}
@@ -43,18 +41,6 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .bubble-row.agent .bubble{background:var(--sand);color:var(--dark);border-bottom-left-radius:5px}
 .bubble-row.user .bubble{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:var(--white);border-bottom-right-radius:5px}
 .bubble-time{font-size:.65rem;color:var(--warm-gray);margin-top:4px}
-.bubble-row.agent .bubble-time{text-align:left}
-.bubble-row.user .bubble-time{text-align:right}
-
-.product-cards{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-.product-card{background:var(--white);border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:10px 12px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .15s;text-decoration:none}
-.product-card:hover{border-color:var(--rose-light);box-shadow:0 4px 14px rgba(232,131,122,.18);transform:translateY(-1px)}
-.product-card img{width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;background:var(--sand)}
-.pc-info{flex:1;min-width:0}
-.pc-name{font-size:.82rem;font-weight:500;color:var(--dark);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pc-price{font-size:.85rem;font-weight:600;color:var(--rose-dark);margin-top:3px}
-.pc-why{font-size:.72rem;color:var(--warm-gray);margin-top:2px;line-height:1.3}
-.pc-cta{display:inline-block;margin-top:4px;font-size:.72rem;color:var(--rose);font-weight:500}
 
 .quick-replies{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
 .qr-btn{background:var(--white);border:1.5px solid var(--rose-light);color:var(--rose-dark);padding:6px 13px;border-radius:20px;font-size:.78rem;cursor:pointer;font-family:var(--font-body);font-weight:500;transition:background .18s,border-color .18s,transform .12s;white-space:nowrap}
@@ -65,100 +51,30 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .typing-dot:nth-child(2){animation-delay:.2s}
 .typing-dot:nth-child(3){animation-delay:.4s}
 @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 .input-area{padding:14px 16px 16px;background:var(--white);border-top:1.5px solid var(--sand);flex-shrink:0}
 .input-row{display:flex;gap:10px;align-items:flex-end}
-.chat-input{flex:1;border:1.5px solid var(--sand);border-radius:24px;padding:10px 16px;font-size:.875rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;resize:none;max-height:96px;min-height:42px;line-height:1.5;transition:border-color .2s}
-.chat-input:focus{border-color:var(--rose)}
-.chat-input::placeholder{color:var(--warm-gray)}
-.send-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s,opacity .2s;color:white}
-.send-btn:hover{transform:scale(1.06)}
-.send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.powered-by{text-align:center;font-size:.65rem;color:var(--warm-gray);margin-top:8px;opacity:.7}
-
-.config-panel,.embed-section{max-width:420px;width:100%;margin-top:20px}
-.config-panel{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
-.config-panel h3{font-family:var(--font-display);font-size:1rem;margin-bottom:14px;color:var(--dark)}
-.config-panel h3 span{color:var(--rose)}
-.config-row{margin-bottom:12px}
-.config-row label{display:block;font-size:.78rem;font-weight:500;color:var(--warm-gray);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-.config-row textarea,.config-row input{width:100%;border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:8px 12px;font-size:.82rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;transition:border-color .2s;resize:vertical}
-.config-row textarea:focus,.config-row input:focus{border-color:var(--rose)}
-.save-btn{width:100%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:var(--radius-sm);padding:11px;font-size:.875rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s,transform .15s;margin-top:4px}
-.save-btn:hover{opacity:.92;transform:translateY(-1px)}
-.embed-section{background:var(--dark);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
-.embed-section h3{font-family:var(--font-display);font-size:1rem;color:var(--cream);margin-bottom:12px}
-.embed-section h3 span{color:var(--rose-light)}
-.code-block{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:14px;font-family:'Courier New',monospace;font-size:.72rem;color:#f0c4c0;white-space:pre-wrap;word-break:break-all;line-height:1.6;margin-bottom:10px}
-.copy-btn{background:var(--rose);color:white;border:none;border-radius:var(--radius-sm);padding:8px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .2s}
-.copy-btn:hover{background:var(--rose-dark)}
-.copy-btn.copied{background:#4ade80;color:var(--dark)}
-.status-bar{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 12px;font-size:.72rem;color:#2d7a4a;margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.status-dot{width:6px;height:6px;background:#4ade80;border-radius:50%;flex-shrink:0}
+.chat-input{flex:1;border:1.5px solid var(--sand);border-radius:24px;padding:10px 16px;font-size:.875rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;resize:none;max-height:96px;min-height:42px;line-height:1.5}
+.send-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white}
 
 .andrea-bar{padding:10px 16px;background:var(--white);border-top:1.5px solid var(--sand);flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.andrea-btn{display:flex;align-items:center;gap:8px;background:transparent;border:1.5px solid var(--rose);color:var(--rose-dark);border-radius:20px;padding:7px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .18s, transform .12s;width:100%;justify-content:center}
-.andrea-btn:hover{background:var(--rose-light);transform:translateY(-1px)}
-.andrea-dot{width:8px;height:8px;background:#f59e0b;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite}
+.andrea-btn{display:flex;align-items:center;gap:8px;background:transparent;border:1.5px solid var(--rose);color:var(--rose-dark);border-radius:20px;padding:7px 16px;font-size:.78rem;font-weight:600;cursor:pointer;width:100%;justify-content:center}
+.andrea-dot{width:8px;height:8px;background:#f59e0b;border-radius:50%}
 
-.modal-overlay{position:absolute;inset:0;background:rgba(26,46,58,.55);display:flex;align-items:center;justify-content:center;z-index:999;border-radius:var(--radius);animation:fadeIn .2s ease}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.modal-box{background:var(--white);border-radius:var(--radius);padding:24px 20px;max-width:340px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center}
-.modal-icon{font-size:2.2rem;margin-bottom:12px;display:block}
-.modal-box h3{font-family:var(--font-display);font-size:1.1rem;color:var(--dark);margin-bottom:10px}
-.modal-box p{font-size:.84rem;color:var(--warm-gray);line-height:1.6;margin-bottom:18px}
-.modal-actions{display:flex;flex-direction:column;gap:8px}
-.modal-btn-yes{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:var(--radius-sm);padding:10px;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .2s}
-.modal-btn-yes:hover{opacity:.9}
-.modal-btn-no{background:transparent;border:1.5px solid var(--sand);color:var(--warm-gray);border-radius:var(--radius-sm);padding:10px;font-size:.85rem;font-weight:500;cursor:pointer;transition:background .18s}
-.modal-btn-no:hover{background:var(--sand)}
-
-.email-gate{padding:24px 16px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center;overflow-y:auto}
-.gate-step{display:none;flex-direction:column;gap:12px;animation:slideIn .25s ease}
+.email-gate{padding:24px 16px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center}
+.gate-step{display:none;flex-direction:column;gap:12px}
 .gate-step.active{display:flex}
-.gate-logo{text-align:center;font-size:2rem;margin-bottom:4px}
-.gate-title{font-family:var(--font-display);font-size:1.1rem;color:var(--dark);text-align:center;line-height:1.4}
-.gate-subtitle{font-size:.82rem;color:var(--warm-gray);text-align:center}
-.email-field{border:1.5px solid var(--sand);border-radius:24px;padding:11px 18px;font-size:.875rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;transition:border-color .2s;text-align:center;width:100%}
-.email-field:focus{border-color:var(--rose)}
-.email-field::placeholder{color:var(--warm-gray)}
-.email-submit{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:24px;padding:11px;font-size:.875rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s,transform .15s;width:100%}
-.email-submit:hover{opacity:.9;transform:translateY(-1px)}
+.gate-title{font-family:var(--font-display);font-size:1.1rem;color:var(--dark);text-align:center}
+.email-field{border:1.5px solid var(--sand);border-radius:24px;padding:11px 18px;font-size:.875rem;text-align:center;width:100%;outline:none;background:var(--cream)}
+.email-submit{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:24px;padding:11px;font-size:.875rem;font-weight:600;cursor:pointer;width:100%}
 .email-error{font-size:.75rem;color:#dc2626;text-align:center;display:none}
 
 .source-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.source-btn{background:var(--white);border:1.5px solid var(--sand);border-radius:12px;padding:10px 8px;font-size:.78rem;font-family:var(--font-body);color:var(--dark);cursor:pointer;transition:all .18s;text-align:center;line-height:1.3}
-.source-btn:hover{border-color:var(--rose-light);background:var(--sand)}
+.source-btn{background:var(--white);border:1.5px solid var(--sand);border-radius:12px;padding:10px 8px;font-size:.78rem;cursor:pointer;text-align:center}
 .source-btn.selected{border-color:var(--rose);background:var(--rose-light);color:var(--rose-dark);font-weight:600}
-
-.rating-overlay{position:absolute;inset:0;background:rgba(26,46,58,.6);display:none;align-items:center;justify-content:center;z-index:99;border-radius:var(--radius)}
-.rating-overlay.show{display:flex}
-.rating-box{background:var(--white);border-radius:var(--radius);padding:24px 20px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.rating-icon{font-size:2rem;margin-bottom:8px}
-.rating-title{font-family:var(--font-display);font-size:1rem;color:var(--dark);margin-bottom:6px;line-height:1.4}
-.rating-subtitle{font-size:.78rem;color:var(--warm-gray);margin-bottom:16px}
-.stars{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
-.star{font-size:2rem;cursor:pointer;transition:transform .15s;filter:grayscale(1);opacity:.4}
-.star:hover,.star.active{filter:grayscale(0);opacity:1;transform:scale(1.15)}
-.rating-comment{width:100%;border:1.5px solid var(--sand);border-radius:10px;padding:10px 12px;font-size:.82rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;resize:none;transition:border-color .2s;margin-bottom:12px}
-.rating-comment:focus{border-color:var(--rose)}
-.rating-submit{width:100%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:10px;padding:10px;font-size:.85rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s}
-.rating-submit:hover{opacity:.9}
-.rating-skip{background:none;border:none;color:var(--warm-gray);font-size:.75rem;cursor:pointer;margin-top:8px;font-family:var(--font-body);text-decoration:underline}
-.rating-thanks{font-size:.9rem;color:var(--dark);padding:8px 0}
 </style>
 </head>
 <body>
-
-<div class="demo-header">
-  <h1>Agente de ventas <em>inteligente</em></h1>
-  <p>Conectado en tiempo real a todo tu catálogo de <strong>De Moi à Toi Regalos</strong>.</p>
-</div>
-
-<div class="embed-note">
-  💡 <strong>Catálogo completo en tiempo real:</strong> Sincronizado dinámicamente con Shopify.
-</div>
 
 <div class="chat-widget" id="chatWidget">
   <div class="chat-header">
@@ -172,14 +88,12 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 
   <div class="email-gate" id="emailGate">
     <div class="gate-step active" id="gateStep1">
-      <div class="gate-logo">🎁</div>
       <div class="gate-title">¡Hola! Para comenzar introduce tu email 😊</div>
       <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com" onkeydown="if(event.key==='Enter') goToStep2()">
       <button class="email-submit" onclick="goToStep2()">Continuar →</button>
       <div class="email-error" id="emailError">Por favor introduce un email válido</div>
     </div>
     <div class="gate-step" id="gateStep2">
-      <div class="gate-logo">🌟</div>
       <div class="gate-title">¿Cómo nos conociste?</div>
       <div class="source-options">
         <button class="source-btn" onclick="selectSource(this,'Instagram')">📸 Instagram</button>
@@ -191,26 +105,10 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     </div>
   </div>
 
-  <div class="rating-overlay" id="ratingOverlay">
-    <div class="rating-box">
-      <div class="rating-icon">⭐</div>
-      <div class="rating-title">¿Cómo ha sido tu experiencia hoy?</div>
-      <div class="stars" id="starsRow">
-        <span class="star" onclick="setStar(1)">⭐</span>
-        <span class="star" onclick="setStar(2)">⭐</span>
-        <span class="star" onclick="setStar(3)">⭐</span>
-        <span class="star" onclick="setStar(4)">⭐</span>
-        <span class="star" onclick="setStar(5)">⭐</span>
-      </div>
-      <textarea class="rating-comment" id="ratingComment" rows="2" placeholder="Comentario opcional..."></textarea>
-      <button class="rating-submit" onclick="submitRating()">Enviar</button>
-    </div>
-  </div>
-
   <div class="messages-area" id="messagesArea" style="display:none"></div>
   <div class="input-area" id="inputArea" style="display:none">
     <div class="input-row">
-      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1" onkeydown="handleKey(event)"></textarea>
       <button class="send-btn" id="sendBtn" onclick="sendMessage()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -219,20 +117,9 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     </div>
   </div>
   <div class="andrea-bar">
-    <button class="andrea-btn" onclick="showAndreaModal()">
+    <button class="andrea-btn" onclick="waitForAndrea()">
       <span class="andrea-dot"></span>Hablar con Andrea
     </button>
-  </div>
-
-  <div class="modal-overlay" id="andreaModal" style="display:none">
-    <div class="modal-box">
-      <span class="modal-icon">👩‍💼</span>
-      <h3>¿Quieres hablar con Andrea?</h3>
-      <div class="modal-actions">
-        <button class="modal-btn-yes" onclick="waitForAndrea()">⏳ Esperar en el chat</button>
-        <button class="modal-btn-no" onclick="closeAndreaModal()">Volver al chat</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -240,13 +127,10 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 const SUPABASE_URL = 'https://tjsvgvcfddwbtnadxbhh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3ZndmNmZGR3YnRuYWR4YmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTMzMTYsImV4cCI6MjA5MzkyOTMxNn0.GtAOjajdcU1A_bSCGKuE3EyVKe5MTCk2dAytyu2s41g'
 
-let _andreaActive = false
-let _waitingTimer = null
-let _lastActivityTime = Date.now()
+let _andreaActive = false;
 let conversationHistory = [];
 let isTyping = false;
 let _selectedSource = null;
-let _selectedStar = 0;
 
 let agentConfig = {
   name: "Sofía",
@@ -262,16 +146,10 @@ async function checkAndreaMessages() {
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
     });
     const convData = await convRes.json();
-    const status = convData?.[0]?.status;
+    if(convData?.[0]?.status === 'andrea_active') _andreaActive = true;
+    if(convData?.[0]?.status === 'active') _andreaActive = false;
 
-    if (status === 'andrea_active' && !_andreaActive) {
-      _andreaActive = true;
-    }
-    if (status === 'active' && _andreaActive) {
-      _andreaActive = false;
-    }
-
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&role=eq.assistant&order=created_at.desc&limit=1`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&order=created_at.desc&limit=1`, {
       headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
     });
     const data = await res.json();
@@ -284,7 +162,7 @@ async function checkAndreaMessages() {
           renderBubble('agent', 'Hola de nuevo 😊 Andrea me ha pasado el testigo. ¿En qué más puedo ayudarte?');
         } else if (last.is_from_andrea) {
           renderAndreaBubble(last.content);
-        } else {
+        } else if (last.role === 'assistant') {
           renderBubble('agent', last.content);
         }
       }
@@ -307,23 +185,18 @@ function renderAndreaBubble(text) {
   area.scrollTop = area.scrollHeight;
 }
 
-function getTime() {
-  return new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
-}
+function getTime() { return new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); }
 
 function renderBubble(role, content) {
   const area = document.getElementById("messagesArea");
   const row = document.createElement("div");
   row.className = `bubble-row ${role}`;
-
   let cleanContent = content.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
-  const msgHtml = cleanContent.replace(/\n/g, "<br>");
-  const avatarEmoji = role === "agent" ? "🎁" : "👤";
   
   row.innerHTML = `
-    <div class="bubble-avatar">${avatarEmoji}</div>
+    <div class="bubble-avatar">${role === "agent" ? "🎁" : "👤"}</div>
     <div>
-      <div class="bubble">${msgHtml}</div>
+      <div class="bubble">${cleanContent.replace(/\n/g, "<br>")}</div>
       <div class="bubble-time">${getTime()}</div>
     </div>`;
   area.appendChild(row);
@@ -339,11 +212,7 @@ function renderQuickReplies(replies) {
     const btn = document.createElement("button");
     btn.className = "qr-btn";
     btn.textContent = r;
-    btn.onclick = () => {
-      wrap.remove();
-      if (r === '💬 Hablar con Andrea') { showAndreaModal(); return; }
-      sendUserMessage(r);
-    };
+    btn.onclick = () => { wrap.remove(); sendUserMessage(r); };
     wrap.appendChild(btn);
   });
   area.appendChild(wrap);
@@ -356,27 +225,14 @@ function showTyping() {
   const row = document.createElement("div");
   row.className = "bubble-row agent";
   row.id = "typingRow";
-  row.innerHTML = `
-    <div class="bubble-avatar">🎁</div>
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-      <span style="font-size: 0.72rem; color: var(--warm-gray); font-style: italic; animation: pulse 2s infinite;">
-        🔍 Voy a revisar las opciones disponibles en la tienda... un segundo
-      </span>
-      <div class="typing-indicator">
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-      </div>
-    </div>`;
+  row.innerHTML = `<div class="bubble-avatar">🎁</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
 }
 function removeTyping() { document.getElementById("typingRow")?.remove(); }
 
 async function callAPI(userMsg) {
-  // Aseguramos que solo guardamos texto simple en el historial local
   conversationHistory.push({ role: "user", content: userMsg });
-  
   const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -391,11 +247,9 @@ async function callAPI(userMsg) {
       cfg_name: agentConfig.name
     })
   });
-  
-  if (!res.ok) throw new Error("HTTP Error " + res.status);
+  if (!res.ok) throw new Error("API Error");
   const data = await res.json();
-  const text = data.content?.find(b => b.type === "text")?.text || "Lo siento, ha habido un problema de procesamiento.";
-  
+  const text = data.content?.[0]?.text || "Lo siento, ha habido un problema.";
   conversationHistory.push({ role: "assistant", content: text });
   return text;
 }
@@ -405,20 +259,15 @@ async function sendUserMessage(text) {
   isTyping = true;
   document.getElementById("quickReplies")?.remove();
   renderBubble("user", text);
-  
-  const inp = document.getElementById("chatInput");
-  inp.value = ""; inp.style.height = "";
   document.getElementById("sendBtn").disabled = true;
-  
   showTyping();
   try {
     const reply = await callAPI(text);
     removeTyping();
     if (!_andreaActive) renderBubble("agent", reply);
   } catch(e) {
-    console.error(e);
     removeTyping();
-    renderBubble("agent", "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏");
+    renderBubble("agent", "Lo siento, ha habido un problema de conexión con la IA. ¿Puedes repetir? 🙏");
   }
   document.getElementById("sendBtn").disabled = false;
   isTyping = false;
@@ -426,12 +275,10 @@ async function sendUserMessage(text) {
 
 function sendMessage() { sendUserMessage(document.getElementById("chatInput").value.trim()); }
 function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
-function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
 
 function goToStep2() {
   const email = document.getElementById('emailInput').value.trim();
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!re.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     document.getElementById('emailError').style.display = 'block';
     return;
   }
@@ -444,130 +291,56 @@ function selectSource(btn, source) {
   _selectedSource = source;
   document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
-  const submitBtn = document.getElementById('sourceSubmit');
-  submitBtn.style.opacity = '1';
-  submitBtn.style.pointerEvents = 'auto';
+  document.getElementById('sourceSubmit').style.opacity = '1';
+  document.getElementById('sourceSubmit').style.pointerEvents = 'auto';
 }
 
 function submitSource() {
   const email = window._customerEmail;
   window._customerSource = _selectedSource;
-  try {
-    sessionStorage.setItem('dmat_email', email);
-    document.cookie = `dmat_email=${email};max-age=86400;path=/`;
-    fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(email)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
-    }).then(r=>r.json()).then(data => {
-      if (data && data.length > 0) {
-        window._convId = data[0].id;
-        sessionStorage.setItem('dmat_conv_id', window._convId);
-        document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
-      }
-      showChat();
-    }).catch(() => showChat());
-  } catch(e) { showChat(); }
-}
-
-function setStar(n) { _selectedStar = n; document.querySelectorAll('.star').forEach((s,i) => { s.classList.toggle('active', i < n); }); }
-
-function submitRating() {
-  if (_selectedStar === 0) return;
-  const comment = document.getElementById('ratingComment').value.trim();
-  if (window._convId) {
-    fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}`, {
-      method: 'PATCH',
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: _selectedStar, rating_comment: comment, status: 'resolved' })
-    });
-  }
-  document.querySelector('.rating-box').innerHTML = '<div>¡Gracias por tu valoración!</div>';
-  setTimeout(() => { document.getElementById('ratingOverlay').classList.remove('show'); }, 2000);
+  sessionStorage.setItem('dmat_email', email);
+  showChat();
 }
 
 async function showChat() {
   document.getElementById('emailGate').style.display = 'none';
   document.getElementById('messagesArea').style.display = 'flex';
   document.getElementById('inputArea').style.display = 'block';
-
+  
+  const area = document.getElementById('messagesArea');
+  area.innerHTML = "";
+  
   if (window._convId) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&order=created_at.asc&limit=30`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?conversation_id=eq.${window._convId}&order=created_at.asc`, {
         headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
       });
       const msgs = await res.json();
       if (msgs && msgs.length > 0) {
-        conversationHistory = msgs
-          .filter(m => !m.is_from_andrea && m.content !== 'sofia_resume' && !m.is_suggestion_private)
-          .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
-
-        const area = document.getElementById('messagesArea');
-        area.innerHTML = ""; // Limpiar
-        
-        const divider = document.createElement('div');
-        divider.style.cssText = 'text-align:center;font-size:.72rem;color:var(--warm-gray);padding:8px 0;opacity:.7';
-        divider.textContent = '— Conversación anterior —';
-        area.appendChild(divider);
-
+        conversationHistory = msgs.map(m => ({ role: m.role, content: m.content }));
         msgs.forEach(m => {
-          if (m.content === 'sofia_resume') return;
           if (m.is_from_andrea) renderAndreaBubble(m.content);
           else renderBubble(m.role === 'user' ? 'user' : 'agent', m.content);
         });
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg) window._lastAndreaId = lastMsg.id;
-        setInterval(checkAndreaMessages, 5000);
-        return;
+        window._lastAndreaId = msgs[msgs.length - 1].id;
       }
-    } catch(e) { console.error(e); }
+    } catch(e) {}
+  } else {
+    renderBubble("agent", `¡Hola! 👋 Soy Sofía, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? 🎁`);
+    renderQuickReplies(["🎁 Busco un regalo o detalle", "📦 Estado de mi pedido", "⚠️ Tengo una incidencia"]);
   }
-  startChat();
   setInterval(checkAndreaMessages, 5000);
 }
 
 function initChat() {
-  if (window._customerEmail) { showChat(); return; }
-  document.getElementById('emailGate').style.display = 'flex';
-  document.getElementById('messagesArea').style.display = 'none';
-  document.getElementById('inputArea').style.display = 'none';
+  if (window._customerEmail) { showChat(); } else { document.getElementById('emailGate').style.display = 'flex'; }
 }
 
-function startChat() {
-  const area = document.getElementById("messagesArea");
-  area.innerHTML = ""; 
-  renderBubble("agent", `¡Hola! 👋 Soy Sofía, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? Cuéntame y te ayudo a encontrar el detalle perfecto 🎁`);
-  renderQuickReplies([
-    "🎁 Busco un regalo o detalle",
-    "📦 Estado de mi pedido",
-    "⚠️ Tengo una incidencia"
-  ]);
-}
-
-function showAndreaModal() { document.getElementById('andreaModal').style.display = 'flex'; }
-function closeAndreaModal() { document.getElementById('andreaModal').style.display = 'none'; }
-function waitForAndrea() {
-  closeAndreaModal();
-  renderBubble("agent", "¡Perfecto! 👩‍💼 Andrea se unirá a esta conversación en breve. Puedes seguir escribiendo aquí.");
-}
+function waitForAndrea() { renderBubble("agent", "¡Perfecto! 👩‍💼 Andrea ha sido alertada y se unirá en breves instantes."); }
 
 window.addEventListener("DOMContentLoaded", () => {
-  try {
-    window._customerEmail = sessionStorage.getItem('dmat_email') || null;
-    window._convId = sessionStorage.getItem('dmat_conv_id') || null;
-    
-    if (window._customerEmail && !window._convId) {
-      fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(window._customerEmail)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
-        headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
-      }).then(r=>r.json()).then(data => {
-        if (data && data.length > 0) {
-          window._convId = data[0].id;
-          sessionStorage.setItem('dmat_conv_id', window._convId);
-        }
-        initChat();
-      }).catch(()=>{ initChat(); });
-    } else {
-      initChat();
-    }
-  } catch(e) { initChat(); }
+  window._customerEmail = sessionStorage.getItem('dmat_email') || null;
+  initChat();
 });
 </script>
 </body>
