@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js')
 
-// Inicialización única de Supabase en el entorno seguro de Vercel
+// Inicialización única de Supabase en Vercel
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -9,16 +9,16 @@ const supabase = createClient(
 const DOUBT_SIGNALS = [
   'no estoy segura', 'no lo sé', 'no sé con certeza', 'debería consultarlo',
   'no tengo esa información', 'no puedo confirmar', 'te recomiendo contactar',
-  'no tengo acceso', 'lo desconozco', 'no dispongo de', 'tendría que verificar',
-  'not sure', 'I don\'t know', 'cannot confirm'
+  'no tengo acceso', 'lo desconozco', 'no dispongo de', 'tendría que verificar'
 ]
 
 function detectsDoubt(text) {
+  if (!text) return false;
   const lower = text.toLowerCase()
   return DOUBT_SIGNALS.some(s => lower.includes(s))
 }
 
-// ── FUNCIÓN PARA RECORRER TODO EL CATÁLOGO PAGINADO DE SHOPIFY ──
+// Recorrer el catálogo de Shopify de 250 en 250 de forma segura
 async function fetchShopifyCatalog() {
   try {
     let allProducts = [];
@@ -26,107 +26,57 @@ async function fetchShopifyCatalog() {
     let keepFetching = true;
     const limit = 250;
 
-    // Bucle para descargar todas las páginas de tu catálogo de Shopify
     while (keepFetching) {
       const response = await fetch(`https://demoiatoi.com/products.json?limit=${limit}&page=${page}`);
-      if (!response.ok) {
-        keepFetching = false;
-        break;
-      }
+      if (!response.ok) { keepFetching = false; break; }
       
       const data = await response.json();
-      
       if (data.products && data.products.length > 0) {
         allProducts = allProducts.concat(data.products);
-        
-        // Si nos devuelve menos del límite, es que llegamos al final
-        if (data.products.length < limit) {
-          keepFetching = false;
-        } else {
-          page++; // Avanzamos de página
-        }
-      } else {
-        keepFetching = false; // Página vacía
-      }
-      
-      // Control de seguridad para evitar bucles infinitos (máximo 1500 productos)
-      if (page > 6) keepFetching = false;
+        if (data.products.length < limit) { keepFetching = false; } else { page++; }
+      } else { keepFetching = false; }
+      if (page > 5) keepFetching = false; // Límite de seguridad
     }
 
-    if (allProducts.length === 0) return "*(Catálogo vacío o no disponible en este momento)*";
+    if (allProducts.length === 0) return "*(Catálogo temporalmente no disponible)*";
 
-    // Agrupamos el catálogo completo recolectado por categorías
     const byCategory = {};
     allProducts.forEach(p => {
       const cat = p.product_type || "Otros";
       const price = p.variants && p.variants.length > 0 ? p.variants[0].price : "Consultar";
-      
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push(`  • "${p.title}" | Desde ${price}€ | ID:${p.id} | URL Handle: ${p.handle}`);
     });
 
-    return Object.entries(byCategory).map(([cat, prods]) =>
-      `**${cat}:**\n${prods.join('\n')}`
-    ).join('\n\n');
-
+    return Object.entries(byCategory).map(([cat, prods]) => `**${cat}:**\n${prods.join('\n')}`).join('\n\n');
   } catch (error) {
-    console.error("Error obteniendo catálogo paginado de Shopify:", error);
-    return "*(El catálogo en tiempo real no está disponible, ayuda al cliente con respuestas generales)*";
+    console.error("Error en Shopify fetch:", error);
+    return "*(Catálogo no disponible)*";
   }
 }
 
-// ── CONSTRUCTOR DEL SYSTEM PROMPT ──
 function buildSystemPrompt(catalogText, customShipping, customReturns, customExtra, agentName = "Sofía") {
-  const shipping = customShipping || "Envío estándar: 3-5 días hábiles en España, 3,99€. Gratis a partir de 40€.";
-  const returns = customReturns || "Aceptamos devoluciones en 14 días si el producto llega defectuoso.";
-  const extra = customExtra || "Si el cliente tiene dudas sobre personalización, explica que lo hace nuestro equipo artesanal en España.";
+  return `Eres ${agentName}, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com).
+Responde de manera cercana, honesta y en español de España.
 
-  return `Eres ${agentName}, la asistente de ventas inteligente de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española especializada en regalos personalizados para celebraciones (bodas, bautizos, comuniones, cumpleaños, fin de curso, Navidad, etc.).
-
-Tu misión: ayudar al cliente a encontrar el regalo o detalle perfecto de forma natural, honesta y cálida.
-
-## TU PERSONALIDAD
-- Cercana y genuina, como una amiga que conoce perfectamente la tienda.
-- Haces preguntas para entender bien qué necesitan (presupuesto, tipo de evento, número de invitados).
-- No presionas ni usas lenguaje de vendedor agresivo.
-- Usas emojis con moderación, solo cuando aportan calidez.
-
-## CATÁLOGO COMPLETO DE LA TIENDA (Sincronizado en tiempo real con Shopify)
-Aquí tienes los productos disponibles actualmente en la web. Usa ESTA lista para recomendar:
-
+## CATÁLOGO DISPONIBLE
 ${catalogText}
 
 ## POLÍTICA DE ENVÍOS
-${shipping}
+${customShipping || "Estándar: 3-5 días."}
 
-## POLÍTICA DE DEVOLUCIONES
-${returns}
+## DEVOLUCIONES
+${customReturns || "14 días para productos defectuosos."}
 
-## INFORMACIÓN ADICIONAL / INSTRUCCIONES DE ANDREA
-${extra}
-
-## CÓMO RECOMENDAR PRODUCTOS
-Cuando el cliente describa su necesidad, recomienda entre 1 y 3 productos que encajen. Sé selectivo.
-Para mostrar productos de forma visual en la interfaz del chat, DEBES incluir obligatoriamente al final de tu respuesta este bloque exacto (sin markdown, sin bloques de código, tal cual):
-
-PRODUCTOS_JSON:[{"id":"ID_DEL_PRODUCTO","razon":"Explicación cortísima de por qué se lo recomiendas"}]
-
-Si no hay productos relevantes o el cliente hace una pregunta general, no incluyas el bloque PRODUCTOS_JSON.
-
-## ESTADO DE PEDIDO
-Si preguntan por el estado, responde exactamente:
-"¡Claro! Puedes consultar el estado de tu pedido en tiempo real aquí: https://demoiatoi.com/pages/estado-de-pedido — solo necesitas introducir tu email o número de pedido 📦"
-
-## CUANDO NO SABES ALGO
-Si te preguntan algo que no está en el catálogo o de lo que no tienes información, di exactamente: "Espera un momento, voy a consultarlo con Andrea para darte la información correcta 🙏" y nada más. Esto alertará a la administración de la tienda.
+## INSTRUCCIONES EXTRA
+${customExtra || ""}
 
 ## REGLAS IMPORTANTES
-- NUNCA inventes productos o precios que no estén en la lista de arriba.
-- Responde siempre en español de España de forma concisa (3-5 frases por respuesta).
-- Las URLs de los productos siguen esta estructura: https://demoiatoi.com/products/[URL_Handle]`;
+- Recomienda de 1 a 3 productos si es relevante usando este formato exacto al final: PRODUCTOS_JSON:[{"id":"ID","razon":"Breve motivo"}]
+- Si no sabes algo, di exactamente: "Espera un momento, voy a consultarlo con Andrea para darte la información correcta 🙏"
+- Respuestas cortas (3-5 frases).`;
 }
 
-// ── HANDLER PRINCIPAL DE LA API (VERCEL) ──
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -144,159 +94,57 @@ module.exports = async function handler(req, res) {
 
     let convId = conversation_id
 
-    // ── CREAR / RECUPERAR CONVERSACIÓN ──
-    if (!convId) {
-      if (customer_email) {
-        const { data: existing } = await supabase
-          .from('chat_conversations')
-          .select('id')
-          .eq('customer_email', customer_email)
-          .neq('status', 'resolved')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .single()
-        if (existing) convId = existing.id
-      }
-      if (!convId) {
-        const { data: newConv } = await supabase
-          .from('chat_conversations')
-          .insert({
-            status: 'active',
-            customer_email: customer_email || null,
-            customer_source: customer_source || null
-          })
-          .select()
-          .single()
-        convId = newConv?.id
-      }
-    }
-
-    if (customer_email && convId) {
-      await supabase
+    // Crear o recuperar conversación
+    if (!convId && customer_email) {
+      const { data: existing } = await supabase
         .from('chat_conversations')
-        .update({ customer_email, updated_at: new Date().toISOString() })
-        .eq('id', convId)
+        .select('id')
+        .eq('customer_email', customer_email)
+        .neq('status', 'resolved')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+      if (existing && existing.length > 0) convId = existing[0].id
+    }
+    
+    if (!convId) {
+      const { data: newConv } = await supabase
+        .from('chat_conversations')
+        .insert({ status: 'active', customer_email: customer_email || null, customer_source: customer_source || null })
+        .select().single()
+      convId = newConv?.id
     }
 
-    // ── MODO CONTACTO DIRECTO ──
-    if (is_contact_request && convId) {
-      await supabase.from('chat_conversations').update({
-        needs_attention: true,
-        alert_type: 'contact_request',
-        contact_channel: contact_channel || 'whatsapp',
-        status: 'active',
-        updated_at: new Date().toISOString()
-      }).eq('id', convId)
-      return res.status(200).json({ conversation_id: convId, contact_logged: true })
+    if (!convId) throw new Error("No se pudo inicializar la conversación en Supabase");
+
+    // Guardar mensaje del usuario si viene en modo normal
+    if (messages && messages.length > 0 && !is_suggestion) {
+      const lastUserMsg = messages[messages.length - 1];
+      await supabase.from('chat_messages').insert({ conversation_id: convId, role: 'user', content: lastUserMsg.content });
     }
 
-    // ── RESPUESTA DE ANDREA A UNA DUDA ──
-    if (andrea_reply_to_doubt && suggestion_text && convId) {
+    // Gestionar respuestas manuales de Andrea desde el panel
+    if (andrea_reply_to_doubt && suggestion_text) {
       await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'assistant',
-        content: `[CONOCIMIENTO APRENDIDO]: ${suggestion_text}`,
-        is_from_andrea: false,
-        is_suggestion_private: true
-      })
-      await supabase.from('chat_conversations').update({
-        needs_attention: false,
-        needs_clarification: false,
-        alert_type: null,
-        status: 'active',
-        updated_at: new Date().toISOString()
-      }).eq('id', convId)
+        conversation_id: convId, role: 'assistant', content: `[CONOCIMIENTO APRENDIDO]: ${suggestion_text}`, is_suggestion_private: true
+      });
     }
 
-    // ── OBTENER CATÁLOGO PAGINADO DESDE SHOPIFY ──
+    // Carga de catálogo y configuración
     const catalogText = await fetchShopifyCatalog();
-
-    // ── PROMPT DE SISTEMA SEGURO EN EL SERVIDOR ──
     const baseSystem = buildSystemPrompt(catalogText, cfg_shipping, cfg_returns, cfg_extra, cfg_name);
 
-    // ── MODO SUGERENCIA DESDE PANEL ──
-    if (is_suggestion && suggestion_text && convId) {
-      const { data: history } = await supabase
-        .from('chat_messages')
-        .select('role, content, is_from_andrea, is_suggestion_private')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: true })
-        .limit(30)
-
-      const chatHistory = (history || [])
-        .filter(m => m.content !== 'sofia_resume' && !m.is_suggestion_private)
-        .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
-
-      const knowledgeItems = (history || [])
-        .filter(m => m.is_suggestion_private && m.content.startsWith('[CONOCIMIENTO APRENDIDO]'))
-        .map(m => m.content.replace('[CONOCIMIENTO APRENDIDO]: ', ''))
-
-      const knowledgeBlock = knowledgeItems.length > 0
-        ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO EN ESTE CHAT:\n${knowledgeItems.join('\n')}`
-        : ''
-
-      const suggestionSystem = `${baseSystem}${knowledgeBlock}\n\nINSTRUCCIÓN PRIVADA DE ANDREA:\n${suggestion_text}`
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 1000,
-          system: suggestionSystem,
-          messages: chatHistory.length > 0 ? chatHistory : [{ role: 'user', content: '...' }]
-        })
-      })
-      const data = await response.json()
-      const assistantText = data.content?.[0]?.text || ''
-
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'assistant',
-        content: assistantText,
-        is_from_andrea: false
-      })
-      
-      await supabase.from('chat_conversations').update({
-        needs_attention: false,
-        status: 'active',
-        updated_at: new Date().toISOString()
-      }).eq('id', convId)
-
-      return res.status(200).json({ ...data, conversation_id: convId })
+    // Filtrar el historial para Anthropic (evitar campos corruptos)
+    let finalMessages = [];
+    if (messages && messages.length > 0) {
+      finalMessages = messages.map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: String(m.content)
+      }));
+    } else {
+      finalMessages = [{ role: 'user', content: 'Hola' }];
     }
 
-    // ── MODO CHAT NORMAL ──
-    const lastUserMsg = messages[messages.length - 1]
-    if (convId && !is_suggestion) {
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'user',
-        content: lastUserMsg.content
-      })
-    }
-
-    const { data: knowledgeRows } = await supabase
-      .from('chat_messages')
-      .select('content')
-      .eq('conversation_id', convId)
-      .eq('is_suggestion_private', true)
-      .order('created_at', { ascending: true })
-
-    const knowledgeItems = (knowledgeRows || [])
-      .filter(m => m.content.startsWith('[CONOCIMIENTO APRENDIDO]'))
-      .map(m => m.content.replace('[CONOCIMIENTO APRENDIDO]: ', ''))
-
-    const knowledgeBlock = knowledgeItems.length > 0
-      ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO EN ESTE CHAT:\n${knowledgeItems.join('\n')}`
-      : ''
-
-    const finalSystem = baseSystem + knowledgeBlock
-
+    // Petición a Anthropic
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -307,41 +155,35 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1000,
-        system: finalSystem,
-        messages
+        system: baseSystem,
+        messages: finalMessages
       })
-    })
-    const data = await response.json()
-    const assistantText = data.content?.[0]?.text || ''
+    });
 
-    const hasDoubt = detectsDoubt(assistantText)
-
-    if (convId) {
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'assistant',
-        content: assistantText,
-        is_from_andrea: false
-      })
-
-      if (hasDoubt) {
-        await supabase.from('chat_conversations').update({
-          needs_attention: true,
-          needs_clarification: true,
-          alert_type: 'doubt',
-          updated_at: new Date().toISOString()
-        }).eq('id', convId)
-      } else {
-        await supabase.from('chat_conversations').update({
-          updated_at: new Date().toISOString()
-        }).eq('id', convId)
-      }
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Error de Anthropic:", errText);
+      return res.status(502).json({ error: "Error de comunicación con el motor de IA" });
     }
 
-    return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt })
+    const data = await response.json();
+    const assistantText = data.content?.[0]?.text || 'Lo siento, no he podido procesar tu solicitud.';
+
+    // Guardar la respuesta de la IA de forma segura
+    await supabase.from('chat_messages').insert({ conversation_id: convId, role: 'assistant', content: assistantText });
+
+    const hasDoubt = detectsDoubt(assistantText);
+    await supabase.from('chat_conversations').update({
+      needs_attention: hasDoubt,
+      needs_clarification: hasDoubt,
+      alert_type: hasDoubt ? 'doubt' : null,
+      updated_at: new Date().toISOString()
+    }).eq('id', convId);
+
+    return res.status(200).json({ content: [{ type: "text", text: assistantText }], conversation_id: convId, has_doubt: hasDoubt });
 
   } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: err.message })
+    console.error("Handler Error:", err);
+    return res.status(500).json({ error: err.message });
   }
 }
