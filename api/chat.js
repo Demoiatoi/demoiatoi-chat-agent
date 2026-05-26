@@ -41,7 +41,8 @@ module.exports = async function handler(req, res) {
           })
           .select()
           .single()
-        convId = newConv.id
+        console.log('newConv:', JSON.stringify(newConv))
+convId = newConv?.id
       }
     }
 
