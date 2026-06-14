@@ -227,15 +227,15 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
         <!-- Barra de modo Andrea activo -->
         <div class="andrea-mode-bar" id="andreaModeBar">
           <span>👩‍💼 Modo Andrea activo — el agente está en pausa</span>
-          <button class="btn-ceder" onclick="cederTurno()">🤖 Ceder turno a Sofía</button>
+          <button class="btn-ceder" onclick="cederTurno()">🤖 Ceder turno a Elena</button>
         </div>
         <!-- Tabs de modo -->
         <div class="input-mode-tabs">
-          <button class="mode-tab active" id="tabSugerencia" onclick="setInputMode('sugerencia')">💡 Sugerir a Sofía</button>
+          <button class="mode-tab active" id="tabSugerencia" onclick="setInputMode('sugerencia')">💡 Sugerir a Elena</button>
           <button class="mode-tab" id="tabAndrea" onclick="setInputMode('andrea')">👩‍💼 Intervenir como Andrea</button>
         </div>
         <div class="andrea-row">
-          <textarea class="andrea-textarea" id="andreaInput" placeholder="Escribe una sugerencia para Sofía..." rows="1"
+          <textarea class="andrea-textarea" id="andreaInput" placeholder="Escribe una sugerencia para Elena..." rows="1"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFromPanel()}"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
           <button class="andrea-send" id="andreaSendBtn" onclick="sendFromPanel()">Enviar ✉️</button>
@@ -263,15 +263,29 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 <script>
 const SUPABASE_URL = 'https://tjsvgvcfddwbtnadxbhh.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3ZndmNmZGR3YnRuYWR4YmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTMzMTYsImV4cCI6MjA5MzkyOTMxNn0.GtAOjajdcU1A_bSCGKuE3EyVKe5MTCk2dAytyu2s41g'
-const PANEL_PASSWORD = 'demoiatoi2024'
 
 // ── LOGIN ──
-function doLogin() {
-  if (document.getElementById('loginPass').value === PANEL_PASSWORD) {
-    document.getElementById('loginOverlay').style.display = 'none'
-    init()
-  } else {
-    document.getElementById('loginError').style.display = 'block'
+async function doLogin() {
+  const pass = document.getElementById('loginPass').value
+  const errorEl = document.getElementById('loginError')
+  errorEl.style.display = 'none'
+  try {
+    const res = await fetch('https://demoiatoi-chat-agent.vercel.app/api/panel-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pass })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      document.getElementById('loginOverlay').style.display = 'none'
+      init()
+    } else {
+      errorEl.textContent = 'Contraseña incorrecta'
+      errorEl.style.display = 'block'
+    }
+  } catch (e) {
+    errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.'
+    errorEl.style.display = 'block'
   }
 }
 
@@ -428,7 +442,7 @@ function renderMessages(messages) {
     const role = isAndrea ? 'andrea' : m.role
     const avatar = isAndrea ? '👩‍💼' : m.role==='user' ? '👤' : '🎁'
     const avClass = isAndrea ? 'andrea-av' : m.role==='user' ? 'user-av' : 'agent-av'
-    const label = isAndrea ? 'Andrea' : m.role==='user' ? 'Cliente' : 'Sofía (IA)'
+    const label = isAndrea ? 'Andrea' : m.role==='user' ? 'Cliente' : 'Elena (IA)'
     const clean = m.content.replace(/PRODUCTOS_JSON:[\s\S]*$/,'').replace(/\n/g,'<br>')
     return `<div class="msg-row ${role}">
       <div class="msg-avatar ${avClass}">${avatar}</div>
@@ -453,7 +467,7 @@ function setInputMode(mode) {
   document.getElementById('tabAndrea').className = 'mode-tab' + (mode==='andrea'?' andrea-mode active':'')
   const input = document.getElementById('andreaInput')
   input.placeholder = mode === 'sugerencia'
-    ? '💡 Escribe una sugerencia para que Sofía la reformule...'
+    ? '💡 Escribe una sugerencia para que Elena la reformule...'
     : '👩‍💼 Escribe tu mensaje directo al cliente como Andrea...'
 }
 
@@ -491,7 +505,7 @@ async function sendAndrea() {
   showToast('✅ Mensaje enviado como Andrea')
 }
 
-// ── ENVIAR SUGERENCIA A SOFÍA ──
+// ── ENVIAR SUGERENCIA A ELENA ──
 async function sendSugerencia() {
   const input = document.getElementById('andreaInput')
   const text = input.value.trim()
@@ -513,7 +527,7 @@ async function sendSugerencia() {
     })
     await loadMessages(currentConvId)
     await loadConversations()
-    showToast('💡 Sugerencia enviada — Sofía responderá al cliente')
+    showToast('💡 Sugerencia enviada — Elena responderá al cliente')
   } catch(e) {
     showToast('❌ Error al enviar sugerencia')
   }
@@ -521,7 +535,7 @@ async function sendSugerencia() {
   document.getElementById('andreaSendBtn').disabled = false
 }
 
-// ── CEDER TURNO A SOFÍA ──
+// ── CEDER TURNO A ELENA ──
 async function cederTurno() {
   if (!currentConvId) return
   andreaIsActive = false
@@ -532,7 +546,7 @@ async function cederTurno() {
     body: JSON.stringify({ status: 'active', updated_at: new Date().toISOString() })
   })
 
-  // Notificar al chat que Sofía retoma
+  // Notificar al chat que Elena retoma
   await sb('chat_messages', {
     method:'POST', prefer:'return=minimal',
     body: JSON.stringify({
@@ -544,7 +558,7 @@ async function cederTurno() {
   })
 
   await loadConversations()
-  showToast('🤖 Turno cedido a Sofía')
+  showToast('🤖 Turno cedido a Elena')
 }
 
 // ── RESOLVER ──

@@ -279,7 +279,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="chat-header">
     <div class="avatar-wrap">🎁</div>
     <div class="chat-header-info">
-      <strong id="agentNameDisplay">Sofía · De Moi à Toi</strong>
+      <strong id="agentNameDisplay">Elena · De Moi à Toi</strong>
       <span>Aquí para ayudarte a encontrar el regalo perfecto ✨</span>
     </div>
     <div class="header-badge">En línea</div>
@@ -375,7 +375,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="status-bar"><div class="status-dot"></div>Catálogo completo activo — todos los productos de demoiatoi.com disponibles</div>
   <div class="config-row">
     <label>Nombre del agente</label>
-    <input type="text" id="cfgName" value="Sofía" placeholder="Ej: Marta, Luna, Noa...">
+    <input type="text" id="cfgName" value="Elena" placeholder="Ej: Marta, Luna, Noa...">
   </div>
   <div class="config-row">
     <label>Política de envíos</label>
@@ -398,7 +398,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="code-block" id="embedCode"><!-- Pega en Online Store → Edit code → theme.liquid, antes de </body> -->
 <script>
   window.DMAT_AGENT = {
-    agentName: "Sofía",
+    agentName: "Elena",
     storeUrl: "https://demoiatoi.com",
     accentColor: "#e8837a"
   };
@@ -435,7 +435,7 @@ async function checkAndreaMessages() {
       startWaitingMessages()
     }
 
-    // Detectar si Sofía retoma
+    // Detectar si Elena retoma
     if (status === 'active' && _andreaActive) {
       _andreaActive = false
       stopWaitingMessages()
@@ -459,7 +459,7 @@ async function checkAndreaMessages() {
           renderAndreaBubble(last.content)
           _lastActivityTime = Date.now()
         } else {
-          // Respuesta de Sofía tras sugerencia — mostrar siempre si es nuevo
+          // Respuesta de Elena tras sugerencia — mostrar siempre si es nuevo
           renderBubble('agent', last.content)
           _lastActivityTime = Date.now()
         }
@@ -510,7 +510,7 @@ function renderAndreaBubble(text) {
 //  CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════
 let agentConfig = {
-  name: "Sofía",
+  name: "Elena",
   shipping: document.getElementById('cfgShipping').value,
   returns:  document.getElementById('cfgReturns').value,
   extra:    document.getElementById('cfgExtra').value
@@ -718,7 +718,7 @@ Si un cliente quiere hacer un pack combinando varios productos de la tienda, no 
 Si te preguntan algo que no sabes o no tienes información suficiente para responder con seguridad, NO inventes. Di exactamente: "Espera un momento, voy a consultarlo con Andrea para darte la información correcta 🙏" y nada más. Esto activará una alerta para que Andrea responda directamente.
 
 ## SI ANDREA ENTRA EN LA CONVERSACIÓN
-Cuando Andrea se una al chat, debes retirarte educadamente. Di: "Os dejo con Andrea, que os atenderá directamente 😊 Si me necesitáis de nuevo, estoy aquí." Y no respondas más en esa conversación hasta que Andrea te ceda el turno escribiendo "Sofía, continúa".
+Cuando Andrea se una al chat, debes retirarte educadamente. Di: "Os dejo con Andrea, que os atenderá directamente 😊 Si me necesitáis de nuevo, estoy aquí." Y no respondas más en esa conversación hasta que Andrea te ceda el turno escribiendo "Elena, continúa".
 
 ## REGLAS IMPORTANTES
 - NUNCA inventes productos o precios que no estén en el catálogo
@@ -883,7 +883,7 @@ async function sendUserMessage(text) {
     const reply = await callAPI(text);
     removeTyping();
     _lastActivityTime = Date.now();
-    // Si Andrea está activa, no mostrar respuesta de Sofía
+    // Si Andrea está activa, no mostrar respuesta de Elena
     if (!_andreaActive) renderBubble("agent", reply);
   } catch(e) {
     removeTyping();
@@ -900,7 +900,7 @@ function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send
 function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
 
 function saveConfig() {
-  agentConfig.name     = document.getElementById("cfgName").value.trim() || "Sofía";
+  agentConfig.name     = document.getElementById("cfgName").value.trim() || "Elena";
   agentConfig.shipping = document.getElementById("cfgShipping").value.trim();
   agentConfig.returns  = document.getElementById("cfgReturns").value.trim();
   agentConfig.extra    = document.getElementById("cfgExtra").value.trim();
