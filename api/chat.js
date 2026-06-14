@@ -81,6 +81,18 @@ function isOrderStatusQuery(text) {
   return ORDER_STATUS_SIGNALS.some(s => lower.includes(s))
 }
 
+// Detecta un número de pedido (p.ej. "#5046" o "5046") en el texto del cliente
+function extractOrderNumber(text) {
+  const m = (text || '').match(/#\s*(\d{3,6})\b/)
+  return m ? m[1] : null
+}
+
+// Detecta un email en el texto del cliente (p.ej. cuando lo da para que revisemos su pedido)
+function extractEmailFromText(text) {
+  const m = (text || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/)
+  return m ? m[0] : null
+}
+
 // Mapea un pedido de Shopify a la etapa real para el cliente
 function getOrderStage(order) {
   const tags = (order.tags || []).map(t => t.toLowerCase())
@@ -99,11 +111,16 @@ const ORDER_STAGE_LABELS = {
   enviado: 'Enviado'
 }
 
-// Consulta los pedidos más recientes de un email en Shopify (Admin GraphQL API)
-async function fetchRecentOrders(email) {
+const ESTADO_PEDIDO_URL = 'https://demoiatoi.com/pages/estado-de-pedido'
+
+// Consulta pedidos en Shopify (Admin GraphQL API) por número de pedido o por email
+async function fetchRecentOrders(email, orderNumber) {
   const domain = process.env.SHOPIFY_STORE_DOMAIN
   const token = process.env.SHOPIFY_ADMIN_TOKEN
   if (!domain || !token) return []
+  if (!email && !orderNumber) return []
+
+  const q = orderNumber ? `name:#${orderNumber}` : `email:'${email}' status:any`
 
   const query = `
     query($q: String!) {
@@ -128,7 +145,7 @@ async function fetchRecentOrders(email) {
       'Content-Type': 'application/json',
       'X-Shopify-Access-Token': token
     },
-    body: JSON.stringify({ query, variables: { q: `email:'${email}' status:any` } })
+    body: JSON.stringify({ query, variables: { q } })
   })
   if (!resp.ok) return []
   const json = await resp.json()
@@ -136,8 +153,13 @@ async function fetchRecentOrders(email) {
 }
 
 // Construye el bloque de contexto con el estado real de los pedidos del cliente
-function buildOrderStatusBlock(orders) {
-  if (!orders || !orders.length) return ''
+function buildOrderStatusBlock(orders, askedDirectly) {
+  if (!orders || !orders.length) {
+    if (!askedDirectly) return ''
+    // El cliente pregunta por su pedido pero no hemos podido localizarlo automáticamente
+    return `\n\nEl cliente pregunta por el estado de un pedido, pero no tienes datos automáticos de él (su email no coincide con ningún pedido o no ha dado uno).
+NO le des todavía el enlace genérico de "estado de pedido". En su lugar, pregúntale si quiere que lo revises tú misma. Si dice que sí, pídele el número de pedido (ej: #5046) y, si no lo tiene a mano, su nombre completo y apellidos o el email con el que hizo el pedido. En cuanto te dé el número de pedido o el email, el sistema lo buscará automáticamente y te dará la información real para responder.`
+  }
 
   const lines = orders.map(o => {
     const stage = getOrderStage(o)
@@ -154,6 +176,8 @@ function buildOrderStatusBlock(orders) {
     return line
   })
 
+  const showPhotoLink = orders.some(o => ['en_produccion', 'enviado'].includes(getOrderStage(o)))
+
   return `\n\nINFORMACIÓN REAL DE PEDIDOS DE ESTE CLIENTE (usa esto, no la respuesta genérica de "ESTADO DE PEDIDO"):
 ${lines.join('\n')}
 
@@ -162,7 +186,8 @@ Instrucciones:
 - Si la nota incluye un enlace (por ejemplo a una foto del resultado final, o de seguimiento), compártelo con el cliente.
 - "Registrado": dile que está registrado y en cola, que pronto entrará en producción.
 - "En producción": dile que ya está en producción, que el equipo lo está preparando con cariño.
-- "Enviado": dile que ya ha salido del taller. Si hay enlace de seguimiento, dáselo junto con el transportista y el número de seguimiento.
+- "Enviado": dile que ya ha salido del taller. Si hay enlace de seguimiento, dáselo junto con el transportista y el número de seguimiento.${showPhotoLink ? `
+- Como el pedido está en producción o ya enviado, dile también que puede ver una foto del resultado final aquí: ${ESTADO_PEDIDO_URL}` : ''}
 - Si hay varios pedidos, resume el estado de cada uno usando su número de pedido.
 - No menciones tags, IDs internos ni la palabra "fulfillment".
 - Escribe cualquier enlace como URL en texto plano (NUNCA en formato markdown [texto](url)).`
@@ -352,10 +377,22 @@ ${suggestion_text}`
 
     // ── ESTADO REAL DE PEDIDOS (Shopify) ──
     let orderStatusBlock = ''
-    if (customer_email && isOrderStatusQuery(lastUserMsg.content)) {
+    const orderNumberInMsg = extractOrderNumber(lastUserMsg.content)
+    const emailInMsg = extractEmailFromText(lastUserMsg.content)
+    const wantsOrderStatus = isOrderStatusQuery(lastUserMsg.content)
+
+    if (orderNumberInMsg || emailInMsg) {
+      // El cliente ha dado número de pedido o email (p.ej. tras pedírselo Elena)
       try {
-        const orders = await fetchRecentOrders(customer_email)
-        orderStatusBlock = buildOrderStatusBlock(orders)
+        const orders = await fetchRecentOrders(emailInMsg, orderNumberInMsg)
+        orderStatusBlock = buildOrderStatusBlock(orders, true)
+      } catch (e) {
+        console.error('fetchRecentOrders failed', e)
+      }
+    } else if (wantsOrderStatus) {
+      try {
+        const orders = customer_email ? await fetchRecentOrders(customer_email) : []
+        orderStatusBlock = buildOrderStatusBlock(orders, true)
       } catch (e) {
         console.error('fetchRecentOrders failed', e)
       }
