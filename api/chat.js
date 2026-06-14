@@ -18,19 +18,17 @@ function detectsDoubt(text) {
   return DOUBT_SIGNALS.some(s => lower.includes(s))
 }
 
-// Frases que indican que Elena le dice al cliente que va a avisar/consultar a Andrea
-const ANDREA_HANDOFF_SIGNALS = [
-  'avisar a andrea', 'aviso a andrea', 'avisarla', 'avisarle a andrea',
-  'consultar con andrea', 'consultarlo con andrea', 'consultarlo con ella',
-  'preguntarle a andrea', 'preguntar a andrea', 'hablar con andrea',
-  'decírselo a andrea', 'comentárselo a andrea', 'lo comento con andrea',
-  'pasar tu mensaje a andrea', 'paso tu mensaje a andrea',
-  'andrea se pondrá en contacto', 'andrea te responderá', 'que te responda andrea'
+// Raíces de verbos que, junto con "Andrea", indican que Elena le dice al cliente
+// que va a avisar/consultar/contactar a Andrea (cualquier conjugación: avisar,
+// avisarla, avisaré, consultar, consultes, le pregunto, comentárselo, etc.)
+const ANDREA_HANDOFF_STEMS = [
+  'avis', 'consult', 'pregunt', 'habla', 'coment', 'contact', 'pas'
 ]
 
 function detectsAndreaHandoff(text) {
   const lower = text.toLowerCase()
-  return ANDREA_HANDOFF_SIGNALS.some(s => lower.includes(s))
+  if (!lower.includes('andrea')) return false
+  return ANDREA_HANDOFF_STEMS.some(stem => lower.includes(stem))
 }
 
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)

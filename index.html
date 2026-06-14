@@ -473,8 +473,10 @@ async function checkAndreaMessages() {
         } else if (last.is_from_andrea) {
           renderAndreaBubble(last.content)
           _lastActivityTime = Date.now()
-        } else {
-          // Respuesta de Elena tras sugerencia — mostrar siempre si es nuevo
+        } else if (!window._awaitingReply) {
+          // Respuesta de Elena tras sugerencia — mostrar si es nuevo.
+          // Si el cliente está esperando su propia respuesta, no la dupliques aquí:
+          // callAPI la mostrará en cuanto termine (ver _awaitingReply).
           renderBubble('agent', last.content)
           _lastActivityTime = Date.now()
         }
@@ -981,32 +983,39 @@ function removeTyping() { document.getElementById("typingRow")?.remove(); }
 // ═══════════════════════════════════════════════════════════════
 async function callAPI(userMsg) {
   conversationHistory.push({role:"user",content:userMsg});
-  const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      model:"claude-sonnet-4-6",
-      max_tokens:1000,
-      system: buildSystemPrompt(),
-      messages: conversationHistory,
-      conversation_id: window._convId || null,
-      customer_email: window._customerEmail || null,
-      customer_source: window._customerSource || null
-    })
-  });
-  if (!res.ok) throw new Error(res.status);
-  const data = await res.json();
-  // Si es una conversación nueva, guardar su id para poder recibir respuestas de Elena/Andrea
-  if (data.conversation_id && !window._convId) {
-    window._convId = data.conversation_id;
-    sessionStorage.setItem('dmat_conv_id', window._convId);
-    document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
+  // Mientras esperamos esta respuesta, que el polling no la renderice también
+  // si llega justo en este intervalo (evita el mensaje duplicado)
+  window._awaitingReply = true;
+  try {
+    const res = await fetch("https://demoiatoi-chat-agent.vercel.app/api/chat",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens:1000,
+        system: buildSystemPrompt(),
+        messages: conversationHistory,
+        conversation_id: window._convId || null,
+        customer_email: window._customerEmail || null,
+        customer_source: window._customerSource || null
+      })
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    // Si es una conversación nueva, guardar su id para poder recibir respuestas de Elena/Andrea
+    if (data.conversation_id && !window._convId) {
+      window._convId = data.conversation_id;
+      sessionStorage.setItem('dmat_conv_id', window._convId);
+      document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
+    }
+    // Esta respuesta ya se va a mostrar aquí mismo: que el polling no la repita
+    if (data.message_id) window._lastAndreaId = data.message_id;
+    const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
+    conversationHistory.push({role:"assistant",content:text});
+    return text;
+  } finally {
+    window._awaitingReply = false;
   }
-  // Esta respuesta ya se va a mostrar aquí mismo: que el polling no la repita
-  if (data.message_id) window._lastAndreaId = data.message_id;
-  const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
-  conversationHistory.push({role:"assistant",content:text});
-  return text;
 }
 
 // ═══════════════════════════════════════════════════════════════
