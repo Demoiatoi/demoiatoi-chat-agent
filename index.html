@@ -831,6 +831,19 @@ function buildSystemPrompt() {
     `**${cat}:**\n${prods.join('\n')}`
   ).join('\n\n');
 
+  const occasionLabels = { boda: 'Boda', bautizo: 'Bautizo', comunion: 'Comunión', cumpleanos: 'Cumpleaños', general: 'General' };
+  const recommendedSections = Object.entries(recommendedProducts)
+    .filter(([, list]) => list && list.length)
+    .map(([cat, list]) => `**${occasionLabels[cat] || cat}:**\n` + list.map(p => `  • "${p.title}" | Desde ${p.price}€ | ID:${p.id}`).join('\n'))
+    .join('\n\n');
+
+  const recommendedBlock = recommendedSections ? `\n\n## PRODUCTOS QUE ANDREA QUIERE QUE PRIORICES (por ocasión)
+Andrea ha seleccionado estos productos como prioritarios para recomendar según la ocasión del cliente:
+
+${recommendedSections}
+
+Si identificas la ocasión (boda, bautizo, comunión, cumpleaños), recomienda PRIMERO de la lista de esa ocasión; si la ocasión no está clara o no hay productos para ella, usa la lista "General". Solo si ninguno de estos productos encaja con lo que pide el cliente, recurre al catálogo completo de abajo.` : '';
+
   return `Eres ${agentConfig.name}, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española especializada en regalos personalizados para celebraciones: bodas, bautizos, comuniones, cumpleaños, fin de curso, Navidad y más.
 
 Tu misión: ayudar al cliente a encontrar el regalo o detalle perfecto de forma natural, honesta y cálida.
@@ -842,6 +855,9 @@ Tu misión: ayudar al cliente a encontrar el regalo o detalle perfecto de forma 
 - No presionas ni usas lenguaje de vendedor agresivo
 - Usas emojis con moderación, solo cuando aportan calidez
 
+## NOMBRE DEL CLIENTE Y PRESENTACIÓN
+Te presentas como la ayudante asistida por IA de Andrea (la dueña de la tienda), no como una vendedora genérica. Si todavía no sabes cómo se llama el cliente, pregúntaselo de forma natural y cercana en uno de tus primeros mensajes (sin insistir si no responde). En cuanto sepas su nombre, dirígete a él/ella por su nombre con calidez durante el resto de la conversación.
+${recommendedBlock}
 ## CATÁLOGO COMPLETO DE LA TIENDA
 
 ${catalogText}
@@ -985,8 +1001,9 @@ function renderBubble(role, content, imageDataUrl) {
       cleanContent = cleanContent.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
       try {
         const refs = JSON.parse(m[1]);
+        const recommendedFlat = Object.values(recommendedProducts).flat();
         products = refs.map(r => {
-          const p = CATALOG.find(x => x.id === r.id);
+          const p = CATALOG.find(x => x.id === r.id) || recommendedFlat.find(x => x.id === r.id);
           return p ? {...p, razon: r.razon} : null;
         }).filter(Boolean);
       } catch(e) {}
@@ -1032,7 +1049,9 @@ function renderBubble(role, content, imageDataUrl) {
     }
   }
 
-  const msgHtml = cleanContent.replace(/\n/g, "<br>");
+  const msgHtml = cleanContent
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br>");
   const avatarEmoji = role === "agent" ? getAgentAvatarHtml() : "👤";
   const imageHtml = imageDataUrl ? `<img class="msg-image" src="${imageDataUrl}" alt="Imagen adjunta">` : "";
   row.innerHTML = `
@@ -1379,7 +1398,7 @@ function initChat() {
 }
 
 function startChat() {
-  renderBubble("agent", `¡Hola! 👋 Soy ${agentConfig.name}, tu asistente en De Moi à Toi Regalos. ¿Estás buscando algo especial para una celebración? Cuéntame y te ayudo a encontrar el detalle perfecto 🎁`);
+  renderBubble("agent", `¡Hola! 👋 Soy ${agentConfig.name}, ayudante asistida por IA de Andrea en De Moi à Toi Regalos. ¿Cómo te llamas? Así puedo ayudarte de forma más cercana 😊 Y cuéntame, ¿qué andas buscando?`);
   renderQuickReplies([
     "🎁 Busco un regalo o detalle",
     "📦 Estado de mi pedido",
