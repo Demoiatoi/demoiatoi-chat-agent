@@ -961,6 +961,12 @@ async function callAPI(userMsg) {
   });
   if (!res.ok) throw new Error(res.status);
   const data = await res.json();
+  // Si es una conversación nueva, guardar su id para poder recibir respuestas de Elena/Andrea
+  if (data.conversation_id && !window._convId) {
+    window._convId = data.conversation_id;
+    sessionStorage.setItem('dmat_conv_id', window._convId);
+    document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
+  }
   const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
   conversationHistory.push({role:"assistant",content:text});
   return text;
