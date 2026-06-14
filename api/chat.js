@@ -81,16 +81,33 @@ function isOrderStatusQuery(text) {
   return ORDER_STATUS_SIGNALS.some(s => lower.includes(s))
 }
 
-// Detecta un número de pedido (p.ej. "#5046" o "5046") en el texto del cliente
-function extractOrderNumber(text) {
-  const m = (text || '').match(/#\s*(\d{3,6})\b/)
-  return m ? m[1] : null
+// Detecta un número de pedido (p.ej. "#5046"; o "5046" a secas si Elena ya lo ha pedido) en el texto del cliente
+function extractOrderNumber(text, plainNumberAllowed) {
+  const withHash = (text || '').match(/#\s*(\d{3,6})\b/)
+  if (withHash) return withHash[1]
+  if (plainNumberAllowed) {
+    const plain = (text || '').match(/\b(\d{3,6})\b/)
+    if (plain) return plain[1]
+  }
+  return null
 }
 
 // Detecta un email en el texto del cliente (p.ej. cuando lo da para que revisemos su pedido)
 function extractEmailFromText(text) {
   const m = (text || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/)
   return m ? m[0] : null
+}
+
+// ¿El último mensaje de Elena le pidió al cliente el número de pedido / nombre / email?
+function lastAssistantAskedForOrderInfo(messages) {
+  for (let i = messages.length - 2; i >= 0; i--) {
+    if (messages[i].role === 'assistant') {
+      const lower = (messages[i].content || '').toLowerCase()
+      return lower.includes('número de pedido') || lower.includes('numero de pedido') ||
+             lower.includes('nombre completo') || lower.includes('lo busque') || lower.includes('lo revise')
+    }
+  }
+  return false
 }
 
 // Mapea un pedido de Shopify a la etapa real para el cliente
@@ -377,7 +394,8 @@ ${suggestion_text}`
 
     // ── ESTADO REAL DE PEDIDOS (Shopify) ──
     let orderStatusBlock = ''
-    const orderNumberInMsg = extractOrderNumber(lastUserMsg.content)
+    const askedForOrderInfo = lastAssistantAskedForOrderInfo(messages)
+    const orderNumberInMsg = extractOrderNumber(lastUserMsg.content, askedForOrderInfo)
     const emailInMsg = extractEmailFromText(lastUserMsg.content)
     const wantsOrderStatus = isOrderStatusQuery(lastUserMsg.content)
 
@@ -389,7 +407,8 @@ ${suggestion_text}`
       } catch (e) {
         console.error('fetchRecentOrders failed', e)
       }
-    } else if (wantsOrderStatus) {
+    } else if (wantsOrderStatus || askedForOrderInfo) {
+      // O bien pregunta por su pedido, o bien Elena ya le pidió los datos y aún no los ha dado
       try {
         const orders = customer_email ? await fetchRecentOrders(customer_email) : []
         orderStatusBlock = buildOrderStatusBlock(orders, true)
