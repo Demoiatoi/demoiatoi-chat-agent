@@ -40,15 +40,84 @@ function detectsBudgetRequest(text) {
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
 const DEFAULT_SYSTEM = `Eres Elena, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
 
-// Aviso urgente y temporal que Andrea puede activar/desactivar desde el panel (p.ej. info de campaña)
-async function fetchUrgentNotice() {
+// Configuración del agente y de la tienda, editable por Andrea desde el panel
+async function fetchStoreSettings() {
   const { data } = await supabase
     .from('store_settings')
-    .select('urgent_notice, urgent_notice_active')
+    .select('*')
     .eq('id', 1)
     .single()
-  if (!data || !data.urgent_notice_active || !data.urgent_notice) return ''
-  return `\n\nAVISO URGENTE Y TEMPORAL DE ANDREA (prioridad alta, ten esto muy en cuenta en tus respuestas):\n${data.urgent_notice}`
+  return data || {}
+}
+
+// Aviso urgente y temporal que Andrea puede activar/desactivar desde el panel (p.ej. info de campaña)
+function buildUrgentNoticeBlock(settings) {
+  if (!settings.urgent_notice_active || !settings.urgent_notice) return ''
+  return `\n\nAVISO URGENTE Y TEMPORAL DE ANDREA (prioridad alta, ten esto muy en cuenta en tus respuestas):\n${settings.urgent_notice}`
+}
+
+// Horario de atención de Andrea, configurado desde el panel ("🎨 Agente")
+const SCHEDULE_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+const SCHEDULE_DAY_LABELS = { mon: 'L', tue: 'M', wed: 'X', thu: 'J', fri: 'V', sat: 'S', sun: 'D' }
+
+function formatScheduleHuman(schedule) {
+  if (!schedule) return ''
+  const groups = []
+  for (const day of SCHEDULE_DAY_KEYS) {
+    const range = schedule[day] || null
+    const key = range ? `${range[0]}-${range[1]}` : 'closed'
+    const last = groups[groups.length - 1]
+    if (last && last.key === key) {
+      last.days.push(day)
+    } else {
+      groups.push({ key, range, days: [day] })
+    }
+  }
+  return groups.map(g => {
+    const label = g.days.length > 1
+      ? `${SCHEDULE_DAY_LABELS[g.days[0]]}-${SCHEDULE_DAY_LABELS[g.days[g.days.length - 1]]}`
+      : SCHEDULE_DAY_LABELS[g.days[0]]
+    return g.range ? `${label} ${g.range[0]}-${g.range[1]}` : `${label} cerrado`
+  }).join(', ')
+}
+
+// Día (mon..sun) y hora (HH:MM) actuales en la zona horaria de España
+function getMadridDayAndTime() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(new Date())
+  const day = parts.find(p => p.type === 'weekday').value.toLowerCase().slice(0, 3)
+  const hour = parts.find(p => p.type === 'hour').value
+  const minute = parts.find(p => p.type === 'minute').value
+  return { day, time: `${hour}:${minute}` }
+}
+
+function isAndreaAvailable(schedule) {
+  if (!schedule) return true
+  const { day, time } = getMadridDayAndTime()
+  const range = schedule[day]
+  if (!range) return false
+  const [start, end] = range
+  return time >= start && time <= end
+}
+
+// Si Andrea está fuera de su horario, instrucción de alta prioridad para que Elena
+// no prometa que Andrea se incorpora ya, y derive por email si no puede resolverlo
+function buildScheduleBlock(schedule) {
+  if (isAndreaAvailable(schedule)) return ''
+  const horario = formatScheduleHuman(schedule) || 'L-J 10:00-17:00, V 10:00-13:00'
+  return `\n\n## DISPONIBILIDAD DE ANDREA — AHORA FUERA DE SU HORARIO DE ATENCIÓN
+Andrea no está disponible ahora mismo (horario de atención: ${horario}, hora de España). NO uses la fórmula de "CÓMO DERIVAR A ANDREA" tal cual (no digas que la avisas para que se incorpore ya ni le pidas esperar en el chat).
+
+En su lugar:
+- Intenta resolver tú misma la consulta con la información disponible.
+- Si de verdad necesitas que lo confirme Andrea, dile al cliente que Andrea está fuera de su horario de atención ahora mismo y que puede escribir a contacto@demoiatoi.es — Andrea lo verá en su próximo horario de atención (${horario}).
+- Si has hecho lo anterior, incluye al final de tu mensaje, en su propia línea y tal cual (sin markdown, sin backticks, sin mencionarlo): AVISO_FUERA_DE_HORARIO`
+}
+
+// Elena ha incluido el marcador de "fuera de horario" en su respuesta
+function detectsOutOfHours(text) {
+  return text.includes('AVISO_FUERA_DE_HORARIO')
 }
 
 // Convierte el "content" de un mensaje (string o array de bloques con imágenes) a un array de bloques
@@ -230,7 +299,8 @@ Instrucciones:
 - Como el pedido está en producción o ya enviado, dile también que puede ver una foto del resultado final aquí: ${ESTADO_PEDIDO_URL}` : ''}
 - Si hay varios pedidos, resume el estado de cada uno usando su número de pedido.
 - No menciones tags, IDs internos ni la palabra "fulfillment".
-- Escribe cualquier enlace como URL en texto plano (NUNCA en formato markdown [texto](url)).`
+- Escribe cualquier enlace como URL en texto plano (NUNCA en formato markdown [texto](url)).
+- Formato: no escribas un único párrafo largo. Usa una frase corta y directa para decir el estado del pedido (puedes destacar la palabra clave del estado, ej. **en producción**, con doble asterisco). Si hay información adicional (seguimiento, foto del resultado, enlace), ponla en un párrafo aparte, separado por un salto de línea en blanco.`
 }
 
 module.exports = async function handler(req, res) {
@@ -248,8 +318,10 @@ module.exports = async function handler(req, res) {
       andrea_reply_to_doubt, doubt_message_id
     } = req.body
 
-    const urgentNoticeBlock = await fetchUrgentNotice()
-    const baseSystem = ((system && system.trim()) ? system : DEFAULT_SYSTEM) + urgentNoticeBlock
+    const storeSettings = await fetchStoreSettings()
+    const urgentNoticeBlock = buildUrgentNoticeBlock(storeSettings)
+    const scheduleBlock = buildScheduleBlock(storeSettings.schedule)
+    const baseSystem = ((system && system.trim()) ? system : DEFAULT_SYSTEM) + urgentNoticeBlock + scheduleBlock
 
     let convId = conversation_id
 
@@ -295,6 +367,7 @@ module.exports = async function handler(req, res) {
         alert_type: 'contact_request',
         contact_channel: contact_channel || 'whatsapp',
         status: 'active',
+        task_completed: false,
         updated_at: new Date().toISOString()
       }).eq('id', convId)
       return res.status(200).json({ conversation_id: convId, contact_logged: true })
@@ -460,10 +533,11 @@ ${suggestion_text}`
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
-    // ── DETECTAR DUDA, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
+    // ── DETECTAR DUDA, FUERA DE HORARIO, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
     const hasDoubt = detectsDoubt(assistantText)
+    const outOfHours = detectsOutOfHours(assistantText)
     const budgetRequest = detectsBudgetRequest(assistantText)
-    const handoffToAndrea = detectsAndreaHandoff(assistantText)
+    const handoffToAndrea = detectsAndreaHandoff(assistantText) && !outOfHours
 
     let assistantMsgId = null
     if (convId) {
@@ -481,6 +555,16 @@ ${suggestion_text}`
           needs_attention: true,
           needs_clarification: true,
           alert_type: 'doubt',
+          task_completed: false,
+          updated_at: new Date().toISOString()
+        }).eq('id', convId)
+      } else if (outOfHours) {
+        // Elena ha derivado al cliente por email porque Andrea está fuera de su horario
+        await supabase.from('chat_conversations').update({
+          needs_attention: true,
+          alert_type: 'out_of_hours',
+          contact_channel: 'email',
+          task_completed: false,
           updated_at: new Date().toISOString()
         }).eq('id', convId)
       } else if (budgetRequest) {
@@ -488,6 +572,7 @@ ${suggestion_text}`
         await supabase.from('chat_conversations').update({
           needs_attention: true,
           alert_type: 'budget_request',
+          task_completed: false,
           updated_at: new Date().toISOString()
         }).eq('id', convId)
       } else if (handoffToAndrea) {
@@ -496,6 +581,7 @@ ${suggestion_text}`
           needs_attention: true,
           alert_type: 'contact_request',
           contact_channel: 'chat',
+          task_completed: false,
           updated_at: new Date().toISOString()
         }).eq('id', convId)
       } else {

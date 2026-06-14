@@ -91,28 +91,14 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .image-preview button:hover{color:var(--rose-dark)}
 .msg-image{max-width:180px;max-height:180px;border-radius:12px;display:block;margin-bottom:6px;object-fit:cover}
 .powered-by{text-align:center;font-size:.65rem;color:var(--warm-gray);margin-top:8px;opacity:.7}
-/* Config */
-.config-panel,.embed-section{max-width:420px;width:100%;margin-top:20px}
-.config-panel{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
-.config-panel h3{font-family:var(--font-display);font-size:1rem;margin-bottom:14px;color:var(--dark)}
-.config-panel h3 span{color:var(--rose)}
-.config-row{margin-bottom:12px}
-.config-row label{display:block;font-size:.78rem;font-weight:500;color:var(--warm-gray);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-.config-row textarea,.config-row input{width:100%;border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:8px 12px;font-size:.82rem;font-family:var(--font-body);color:var(--dark);background:var(--cream);outline:none;transition:border-color .2s;resize:vertical}
-.config-row textarea:focus,.config-row input:focus{border-color:var(--rose)}
-.save-btn{width:100%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:white;border:none;border-radius:var(--radius-sm);padding:11px;font-size:.875rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:opacity .2s,transform .15s;margin-top:4px}
-.save-btn:hover{opacity:.92;transform:translateY(-1px)}
-.embed-section{background:var(--dark);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+/* Embed */
+.embed-section{max-width:420px;width:100%;margin-top:20px;background:var(--dark);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
 .embed-section h3{font-family:var(--font-display);font-size:1rem;color:var(--cream);margin-bottom:12px}
 .embed-section h3 span{color:var(--rose-light)}
 .code-block{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:14px;font-family:'Courier New',monospace;font-size:.72rem;color:#f0c4c0;white-space:pre-wrap;word-break:break-all;line-height:1.6;margin-bottom:10px}
 .copy-btn{background:var(--rose);color:white;border:none;border-radius:var(--radius-sm);padding:8px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .2s}
 .copy-btn:hover{background:var(--rose-dark)}
 .copy-btn.copied{background:#4ade80;color:var(--dark)}
-/* Status bar */
-.status-bar{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 12px;font-size:.72rem;color:#2d7a4a;margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.status-dot{width:6px;height:6px;background:#4ade80;border-radius:50%;flex-shrink:0}
-
 /* BOTÓN ANDREA */
 .andrea-bar{
   padding:10px 16px;
@@ -387,36 +373,6 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     </div>
   </div>
 
-</div>
-
-<!-- CONFIG -->
-<div class="config-panel">
-  <h3>⚙️ Personaliza tu <span>agente</span></h3>
-  <div class="status-bar"><div class="status-dot"></div>Catálogo completo activo — todos los productos de demoiatoi.com disponibles</div>
-  <div class="config-row">
-    <label>Nombre del agente</label>
-    <input type="text" id="cfgName" value="Elena" placeholder="Ej: Marta, Luna, Noa...">
-  </div>
-  <div class="config-row">
-    <label>Foto del agente</label>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div id="cfgPhotoPreview" style="width:42px;height:42px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--rose-light),var(--rose));display:flex;align-items:center;justify-content:center;font-size:1.25rem;overflow:hidden">🎁</div>
-      <input type="file" id="cfgPhoto" accept="image/png,image/jpeg,image/webp" onchange="handleAgentPhotoSelect(event)" style="flex:1">
-    </div>
-  </div>
-  <div class="config-row">
-    <label>Política de envíos</label>
-    <textarea id="cfgShipping" rows="3">Tiempo de producción: de 6 a 15 días hábiles (estándar). Tazas y láminas se preparan y envían en 24h. En campañas concretas centralizamos la producción de pedidos urgentes — conviene preguntar siempre para confirmar disponibilidad. Una vez el pedido sale del taller, el envío es siempre urgente (24-48h) con seguimiento de transporte. Si el pedido es muy urgente, se puede contratar un servicio de 10h contactando para abonar la diferencia. Coste de envío: gratis a partir de 90€; para pedidos de menor importe ronda entre 5€ y 6,50€ según destino y volumen. Disponemos de un cupo de pedidos urgentes; una vez cubierto, no se podrán aceptar más urgentes hasta la fecha que indiquemos. Si el cliente necesita algo urgente, dile que vas a consultarlo con Andrea antes de confirmar. Hacemos envíos a toda España. También podemos enviar al extranjero (incluido Portugal) bajo petición.</textarea>
-  </div>
-  <div class="config-row">
-    <label>Política de devoluciones</label>
-    <textarea id="cfgReturns" rows="2">Aceptamos devoluciones en 14 días si el producto llega defectuoso. Los productos personalizados no admiten devolución salvo error nuestro. Contacta en contacto@demoiatoi.es</textarea>
-  </div>
-  <div class="config-row">
-    <label>Información adicional / instrucciones especiales</label>
-    <textarea id="cfgExtra" rows="2" placeholder="Notas extra para Elena (opcional)..."></textarea>
-  </div>
-  <button class="save-btn" onclick="saveConfig()">💾 Guardar y reiniciar chat</button>
 </div>
 
 <!-- EMBED CODE -->
@@ -737,10 +693,11 @@ function playNotificationSound() {
 let agentConfig = {
   name: "Elena",
   avatar: null,
-  shipping: document.getElementById('cfgShipping').value,
-  returns:  document.getElementById('cfgReturns').value,
-  extra:    document.getElementById('cfgExtra').value
+  shipping: "Tiempo de producción: de 6 a 15 días hábiles (estándar). Tazas y láminas se preparan y envían en 24h. En campañas concretas centralizamos la producción de pedidos urgentes — conviene preguntar siempre para confirmar disponibilidad. Una vez el pedido sale del taller, el envío es siempre urgente (24-48h) con seguimiento de transporte. Si el pedido es muy urgente, se puede contratar un servicio de 10h contactando para abonar la diferencia. Coste de envío: gratis a partir de 90€; para pedidos de menor importe ronda entre 5€ y 6,50€ según destino y volumen. Disponemos de un cupo de pedidos urgentes; una vez cubierto, no se podrán aceptar más urgentes hasta la fecha que indiquemos. Si el cliente necesita algo urgente, dile que vas a consultarlo con Andrea antes de confirmar. Hacemos envíos a toda España. También podemos enviar al extranjero (incluido Portugal) bajo petición.",
+  returns: "Aceptamos devoluciones en 14 días si el producto llega defectuoso. Los productos personalizados no admiten devolución salvo error nuestro. Contacta en contacto@demoiatoi.es",
+  extra: ""
 };
+let recommendedProducts = { boda: [], bautizo: [], comunion: [], cumpleanos: [], general: [] };
 
 let conversationHistory = [];
 let isTyping = false;
@@ -1240,6 +1197,24 @@ function clearPendingImage() {
 function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
 
+// ── CONFIGURACIÓN DEL AGENTE (desde el panel de Andrea) ──
+async function loadAgentSettings() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/store_settings?id=eq.1&select=agent_name,agent_avatar,shipping_policy,returns_policy,extra_instructions,recommended_products`,
+      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
+    const [s] = await res.json();
+    if (!s) return;
+    if (s.agent_name) agentConfig.name = s.agent_name;
+    if (s.agent_avatar) agentConfig.avatar = s.agent_avatar;
+    if (s.shipping_policy) agentConfig.shipping = s.shipping_policy;
+    if (s.returns_policy) agentConfig.returns = s.returns_policy;
+    agentConfig.extra = s.extra_instructions || "";
+    if (s.recommended_products) recommendedProducts = Object.assign(recommendedProducts, s.recommended_products);
+    document.getElementById("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
+    applyAgentAvatar();
+  } catch (e) {}
+}
+
 // ── FOTO DEL AGENTE ──
 function getAgentAvatarHtml() {
   return agentConfig.avatar ? `<img src="${agentConfig.avatar}" alt="${agentConfig.name}">` : "🎁";
@@ -1249,34 +1224,6 @@ function applyAgentAvatar() {
   const html = getAgentAvatarHtml();
   document.getElementById("agentAvatarWrap").innerHTML = html;
   document.getElementById("gateLogo1").innerHTML = html;
-  document.getElementById("cfgPhotoPreview").innerHTML = html;
-}
-
-function handleAgentPhotoSelect(e) {
-  const file = e.target.files[0];
-  e.target.value = "";
-  if (!file) return;
-  if (!file.type.startsWith("image/")) { alert("Por favor, selecciona una imagen."); return; }
-  if (file.size > 2 * 1024 * 1024) { alert("La imagen pesa demasiado (máx. 2MB). Prueba con una más ligera."); return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    agentConfig.avatar = reader.result;
-    applyAgentAvatar();
-  };
-  reader.readAsDataURL(file);
-}
-
-function saveConfig() {
-  agentConfig.name     = document.getElementById("cfgName").value.trim() || "Elena";
-  agentConfig.shipping = document.getElementById("cfgShipping").value.trim();
-  agentConfig.returns  = document.getElementById("cfgReturns").value.trim();
-  agentConfig.extra    = document.getElementById("cfgExtra").value.trim();
-  document.getElementById("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
-  applyAgentAvatar();
-  conversationHistory = [];
-  document.getElementById("messagesArea").innerHTML = "";
-  initChat();
-  alert(`✅ Guardado. El agente ahora se llama "${agentConfig.name}" y tiene la configuración actualizada.`);
 }
 
 function copyEmbed() {
@@ -1483,6 +1430,7 @@ function contactAndreaEmail() {
 
 window.addEventListener("DOMContentLoaded", () => {
   updateSoundIcon();
+  loadAgentSettings();
   // Recuperar email y conversación anterior si existe
   try {
   window._customerEmail = sessionStorage.getItem('dmat_email') ||
