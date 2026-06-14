@@ -31,6 +31,7 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 .hstat span{display:block;font-size:.65rem;opacity:.7;font-weight:400}
 .notif-bell{background:rgba(255,255,255,.15);border:none;color:white;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;position:relative}
 .notif-count{position:absolute;top:-2px;right:-2px;background:#ef4444;color:white;font-size:.6rem;font-weight:700;width:15px;height:15px;border-radius:50%;display:none;align-items:center;justify-content:center}
+.notif-bell.notice-active::after{content:'';position:absolute;top:-2px;right:-2px;width:11px;height:11px;border-radius:50%;background:#4ade80;border:2px solid var(--blue-dark)}
 .notif-count.show{display:flex}
 
 /* LAYOUT */
@@ -183,6 +184,7 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
     <div class="hstat" id="statRating">–<span>⭐ Media</span></div>
   </div>
   <div class="status-pill"><div class="status-dot"></div>En vivo</div>
+  <button class="notif-bell" id="noticeBtn" onclick="openNoticeModal()" title="Aviso urgente para Elena">📢</button>
   <button class="notif-bell" id="notifBell">🔔<div class="notif-count" id="notifCount">0</div></button>
 </div>
 
@@ -253,6 +255,23 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
     <div class="modal-actions">
       <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn">Borrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVISO URGENTE -->
+<div class="modal-overlay" id="noticeOverlay">
+  <div class="modal-box" style="max-width:440px;text-align:left">
+    <h3>📢 Aviso urgente para Elena</h3>
+    <p>Este texto se añade a las instrucciones de Elena mientras esté <strong>activo</strong>. Útil para campañas o plazos especiales (p.ej. fin de campaña de profes, stock agotado, etc.).</p>
+    <textarea id="noticeText" rows="5" placeholder="Ej: Estamos al final de la campaña de profes. Entrega urgente: tazas en 24/48h. Para el resto de artículos, consultar disponibilidad con Andrea."
+      style="width:100%;border:1.5px solid var(--sand);border-radius:8px;padding:10px;font-size:.85rem;font-family:var(--font-b);color:var(--dark);resize:vertical;margin-bottom:12px;outline:none"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;margin-bottom:16px;cursor:pointer">
+      <input type="checkbox" id="noticeActive"> Aviso activo (Elena lo tendrá en cuenta ahora mismo)
+    </label>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="closeNoticeModal()">Cancelar</button>
+      <button class="modal-btn modal-btn-confirm" style="background:var(--blue)" onclick="saveNotice()">Guardar</button>
     </div>
   </div>
 </div>

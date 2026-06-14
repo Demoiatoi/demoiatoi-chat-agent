@@ -21,6 +21,17 @@ function detectsDoubt(text) {
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
 const DEFAULT_SYSTEM = `Eres Elena, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
 
+// Aviso urgente y temporal que Andrea puede activar/desactivar desde el panel (p.ej. info de campaña)
+async function fetchUrgentNotice() {
+  const { data } = await supabase
+    .from('store_settings')
+    .select('urgent_notice, urgent_notice_active')
+    .eq('id', 1)
+    .single()
+  if (!data || !data.urgent_notice_active || !data.urgent_notice) return ''
+  return `\n\nAVISO URGENTE Y TEMPORAL DE ANDREA (prioridad alta, ten esto muy en cuenta en tus respuestas):\n${data.urgent_notice}`
+}
+
 // La API de Anthropic exige que "messages" empiece en "user" y alterne user/assistant sin repetir rol
 function normalizeMessages(list) {
   const merged = []
@@ -151,7 +162,8 @@ module.exports = async function handler(req, res) {
       andrea_reply_to_doubt, doubt_message_id
     } = req.body
 
-    const baseSystem = (system && system.trim()) ? system : DEFAULT_SYSTEM
+    const urgentNoticeBlock = await fetchUrgentNotice()
+    const baseSystem = ((system && system.trim()) ? system : DEFAULT_SYSTEM) + urgentNoticeBlock
 
     let convId = conversation_id
 
