@@ -967,6 +967,8 @@ async function callAPI(userMsg) {
     sessionStorage.setItem('dmat_conv_id', window._convId);
     document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
   }
+  // Esta respuesta ya se va a mostrar aquí mismo: que el polling no la repita
+  if (data.message_id) window._lastAndreaId = data.message_id;
   const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
   conversationHistory.push({role:"assistant",content:text});
   return text;

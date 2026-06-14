@@ -111,6 +111,7 @@ async function fetchRecentOrders(email) {
         edges {
           node {
             name
+            note
             displayFulfillmentStatus
             tags
             fulfillments(first: 1) {
@@ -147,6 +148,9 @@ function buildOrderStatusBlock(orders) {
         line += ` · Transportista: ${tracking.company || 'transportista'} · Nº seguimiento: ${tracking.number || '—'} · Enlace de seguimiento: ${tracking.url}`
       }
     }
+    if (o.note && o.note.trim()) {
+      line += `\n  Nota del taller para este pedido (ESTO ES LO MÁS ACTUALIZADO, tiene prioridad sobre el estado genérico anterior): "${o.note.trim()}"`
+    }
     return line
   })
 
@@ -154,12 +158,14 @@ function buildOrderStatusBlock(orders) {
 ${lines.join('\n')}
 
 Instrucciones:
+- Si un pedido tiene "Nota del taller", esa es la información más fiable y reciente (la escribe el equipo a mano): básate en ella para tu respuesta, resumiéndola o adaptándola al tono de la conversación, por encima del estado genérico.
+- Si la nota incluye un enlace (por ejemplo a una foto del resultado final, o de seguimiento), compártelo con el cliente.
 - "Registrado": dile que está registrado y en cola, que pronto entrará en producción.
 - "En producción": dile que ya está en producción, que el equipo lo está preparando con cariño.
 - "Enviado": dile que ya ha salido del taller. Si hay enlace de seguimiento, dáselo junto con el transportista y el número de seguimiento.
 - Si hay varios pedidos, resume el estado de cada uno usando su número de pedido.
 - No menciones tags, IDs internos ni la palabra "fulfillment".
-- Escribe el enlace de seguimiento como URL en texto plano (NUNCA en formato markdown [texto](url)).`
+- Escribe cualquier enlace como URL en texto plano (NUNCA en formato markdown [texto](url)).`
 }
 
 module.exports = async function handler(req, res) {
@@ -378,13 +384,15 @@ ${suggestion_text}`
     const hasDoubt = detectsDoubt(assistantText)
     const handoffToAndrea = detectsAndreaHandoff(assistantText)
 
+    let assistantMsgId = null
     if (convId) {
-      await supabase.from('chat_messages').insert({
+      const { data: insertedMsg } = await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
         content: assistantText,
         is_from_andrea: false
-      })
+      }).select('id').single()
+      assistantMsgId = insertedMsg?.id || null
 
       if (hasDoubt) {
         // Mark conversation as needing clarification from Andrea
@@ -409,7 +417,7 @@ ${suggestion_text}`
       }
     }
 
-    return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt })
+    return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt, message_id: assistantMsgId })
 
   } catch (err) {
     console.error(err)
