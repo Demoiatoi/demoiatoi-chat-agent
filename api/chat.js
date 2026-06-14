@@ -31,6 +31,12 @@ function detectsAndreaHandoff(text) {
   return ANDREA_HANDOFF_STEMS.some(stem => lower.includes(stem))
 }
 
+// Elena ha terminado de recopilar los datos de una solicitud de presupuesto
+// y ha presentado el resumen visual al cliente (ver marcador PRESUPUESTO_SOLICITADO)
+function detectsBudgetRequest(text) {
+  return text.includes('PRESUPUESTO_SOLICITADO')
+}
+
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
 const DEFAULT_SYSTEM = `Eres Elena, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
 
@@ -45,22 +51,41 @@ async function fetchUrgentNotice() {
   return `\n\nAVISO URGENTE Y TEMPORAL DE ANDREA (prioridad alta, ten esto muy en cuenta en tus respuestas):\n${data.urgent_notice}`
 }
 
+// Convierte el "content" de un mensaje (string o array de bloques con imágenes) a un array de bloques
+function toBlocks(content) {
+  if (Array.isArray(content)) return content
+  return [{ type: 'text', text: String(content) }]
+}
+
+// Extrae el texto de un mensaje (string o array de bloques) para guardarlo en Supabase / analizarlo
+function extractTextContent(content) {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    const text = content.filter(b => b.type === 'text').map(b => b.text).join(' ').trim()
+    const hasImage = content.some(b => b.type === 'image')
+    if (hasImage) return `📎 [Imagen adjunta]${text ? ' ' + text : ''}`
+    return text
+  }
+  return ''
+}
+
 // La API de Anthropic exige que "messages" empiece en "user" y alterne user/assistant sin repetir rol
 function normalizeMessages(list) {
   const merged = []
   for (const m of (list || [])) {
     if (!m || !m.content) continue
     const role = m.role === 'assistant' ? 'assistant' : 'user'
+    const blocks = toBlocks(m.content)
     if (merged.length && merged[merged.length - 1].role === role) {
-      merged[merged.length - 1].content += '\n' + m.content
+      merged[merged.length - 1].content = merged[merged.length - 1].content.concat(blocks)
     } else {
-      merged.push({ role, content: m.content })
+      merged.push({ role, content: blocks })
     }
   }
   if (!merged.length) {
-    merged.push({ role: 'user', content: '...' })
+    merged.push({ role: 'user', content: [{ type: 'text', text: '...' }] })
   } else if (merged[0].role !== 'user') {
-    merged.unshift({ role: 'user', content: '...' })
+    merged.unshift({ role: 'user', content: [{ type: 'text', text: '...' }] })
   }
   return merged
 }
@@ -366,11 +391,12 @@ ${suggestion_text}`
 
     // ── MODO NORMAL ──
     const lastUserMsg = messages[messages.length - 1]
+    const lastUserText = extractTextContent(lastUserMsg.content)
     if (convId && !is_suggestion) {
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'user',
-        content: lastUserMsg.content
+        content: lastUserText
       })
     }
 
@@ -393,9 +419,9 @@ ${suggestion_text}`
     // ── ESTADO REAL DE PEDIDOS (Shopify) ──
     let orderStatusBlock = ''
     const askedForOrderInfo = lastAssistantAskedForOrderInfo(messages)
-    const orderNumberInMsg = extractOrderNumber(lastUserMsg.content, askedForOrderInfo)
-    const emailInMsg = extractEmailFromText(lastUserMsg.content)
-    const wantsOrderStatus = isOrderStatusQuery(lastUserMsg.content)
+    const orderNumberInMsg = extractOrderNumber(lastUserText, askedForOrderInfo)
+    const emailInMsg = extractEmailFromText(lastUserText)
+    const wantsOrderStatus = isOrderStatusQuery(lastUserText)
 
     if (orderNumberInMsg || emailInMsg) {
       // El cliente ha dado número de pedido o email (p.ej. tras pedírselo Elena)
@@ -434,8 +460,9 @@ ${suggestion_text}`
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
-    // ── DETECTAR DUDA O AVISO A ANDREA ──
+    // ── DETECTAR DUDA, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
     const hasDoubt = detectsDoubt(assistantText)
+    const budgetRequest = detectsBudgetRequest(assistantText)
     const handoffToAndrea = detectsAndreaHandoff(assistantText)
 
     let assistantMsgId = null
@@ -456,6 +483,13 @@ ${suggestion_text}`
           alert_type: 'doubt',
           updated_at: new Date().toISOString()
         }).eq('id', convId)
+      } else if (budgetRequest) {
+        // Elena ha presentado el resumen de una solicitud de presupuesto
+        await supabase.from('chat_conversations').update({
+          needs_attention: true,
+          alert_type: 'budget_request',
+          updated_at: new Date().toISOString()
+        }).eq('id', convId)
       } else if (handoffToAndrea) {
         // Elena le ha dicho al cliente que avisará a Andrea: que salte la alerta de verdad
         await supabase.from('chat_conversations').update({
@@ -471,7 +505,7 @@ ${suggestion_text}`
       }
     }
 
-    return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt, message_id: assistantMsgId })
+    return res.status(200).json({ ...data, conversation_id: convId, has_doubt: hasDoubt, andrea_handoff: handoffToAndrea, message_id: assistantMsgId })
 
   } catch (err) {
     console.error(err)

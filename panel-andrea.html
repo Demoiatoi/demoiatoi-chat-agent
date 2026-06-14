@@ -449,7 +449,9 @@ function renderConvList() {
           ? '<span class="badge badge-attention">❓ Duda de Elena</span>'
           : c.alert_type === 'contact_request'
             ? '<span class="badge badge-attention">💬 Quiere hablar</span>'
-            : '<span class="badge badge-attention">⚠️ Atención</span>')
+            : c.alert_type === 'budget_request'
+              ? '<span class="badge badge-attention">📋 Presupuesto</span>'
+              : '<span class="badge badge-attention">⚠️ Atención</span>')
       : c.status === 'resolved'
       ? '<span class="badge badge-resolved">✅ Resuelta</span>'
       : '<span class="badge badge-active">● Activa</span>'
@@ -490,7 +492,9 @@ async function selectConv(id) {
         ? (conv.contact_channel === 'email' ? '💬 Quiere que le contactes por email'
           : conv.contact_channel === 'whatsapp' ? '💬 Quiere que le contactes por WhatsApp'
           : '💬 El cliente quiere hablar contigo')
-        : '⚠️ Necesita atención'
+        : conv.alert_type === 'budget_request'
+          ? '📋 Solicitud de presupuesto — revisa el resumen en el chat'
+          : '⚠️ Necesita atención'
     meta.push(`<span class="meta-tag" style="color:var(--orange)">${attentionLabel}</span>`)
   }
   document.getElementById('chatMeta').innerHTML = meta.join('')

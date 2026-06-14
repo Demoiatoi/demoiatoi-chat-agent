@@ -80,6 +80,15 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .send-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--rose-dark),var(--rose));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s,opacity .2s;color:white}
 .send-btn:hover{transform:scale(1.06)}
 .send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.attach-btn{width:42px;height:42px;border-radius:50%;background:var(--cream);border:1.5px solid var(--sand);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.1rem;color:var(--warm-gray);transition:background .15s,border-color .15s,color .15s}
+.attach-btn:hover{border-color:var(--rose);color:var(--rose-dark)}
+.attach-btn:disabled{opacity:.5;cursor:not-allowed}
+.image-preview{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 10px;background:var(--cream);border-radius:12px;border:1.5px solid var(--sand)}
+.image-preview img{width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0}
+.image-preview span{font-size:.78rem;color:var(--warm-gray)}
+.image-preview button{margin-left:auto;background:none;border:none;color:var(--warm-gray);cursor:pointer;font-size:1rem;padding:4px;line-height:1}
+.image-preview button:hover{color:var(--rose-dark)}
+.msg-image{max-width:180px;max-height:180px;border-radius:12px;display:block;margin-bottom:6px;object-fit:cover}
 .powered-by{text-align:center;font-size:.65rem;color:var(--warm-gray);margin-top:8px;opacity:.7}
 /* Config */
 .config-panel,.embed-section{max-width:420px;width:100%;margin-top:20px}
@@ -336,7 +345,14 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 
   <div class="messages-area" id="messagesArea" style="display:none"></div>
   <div class="input-area" id="inputArea" style="display:none">
+    <div class="image-preview" id="imagePreview" style="display:none">
+      <img id="previewImg" src="" alt="Imagen adjunta">
+      <span>Imagen adjunta</span>
+      <button onclick="clearPendingImage()" title="Quitar imagen">✕</button>
+    </div>
     <div class="input-row">
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="handleFileSelect(event)">
+      <button class="attach-btn" id="attachBtn" onclick="document.getElementById('fileInput').click()" title="Adjuntar imagen o captura">📎</button>
       <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1"
         onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
       <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Enviar">
@@ -390,7 +406,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   </div>
   <div class="config-row">
     <label>Información adicional / instrucciones especiales</label>
-    <textarea id="cfgExtra" rows="2">Si el cliente tiene dudas sobre personalización, explica que lo hace nuestro equipo artesanal en España. Para pedidos de más de 20 unidades, recomienda contactar directamente para presupuesto especial.</textarea>
+    <textarea id="cfgExtra" rows="2" placeholder="Notas extra para Elena (opcional)..."></textarea>
   </div>
   <button class="save-btn" onclick="saveConfig()">💾 Guardar y reiniciar chat</button>
 </div>
@@ -425,6 +441,8 @@ let _lastUserMsgTime = Date.now()
 let _closingStage = 0 // 0=normal, 1=avisado, 2=aviso de cierre, 3=resuelta
 let _inactivityTimer = null
 let _pausedForAndrea = false
+let _andreaWaitActive = false
+let _andreaWaitCount = 0
 
 function startPolling() {
   if (_pollTimer) return
@@ -447,6 +465,8 @@ async function checkAndreaMessages() {
     // Detectar si Andrea tomó el control
     if (status === 'andrea_active' && !_andreaActive) {
       _andreaActive = true
+      _andreaWaitActive = false
+      _andreaWaitCount = 0
       startWaitingMessages()
     }
 
@@ -506,6 +526,62 @@ function startWaitingMessages() {
 
 function stopWaitingMessages() {
   if (_waitingTimer) { clearInterval(_waitingTimer); _waitingTimer = null }
+}
+
+// ── ESPERA A QUE ANDREA SE INCORPORE (tras derivación automática de Elena) ──
+function startAndreaWaitFlow() {
+  _pausedForAndrea = true
+  _lastActivityTime = Date.now()
+  if (_andreaWaitActive) return
+  _andreaWaitActive = true
+  _andreaWaitCount = 0
+  stopWaitingMessages()
+  _waitingTimer = setInterval(() => {
+    if (_andreaActive || !_andreaWaitActive) return
+    if (Date.now() - _lastActivityTime > 55000) {
+      _andreaWaitCount++
+      if (_andreaWaitCount <= 2) {
+        renderBubble('agent', waitingMessages[(_andreaWaitCount - 1) % waitingMessages.length])
+        _lastActivityTime = Date.now()
+      } else {
+        stopWaitingMessages()
+        _andreaWaitActive = false
+        renderAndreaWaitOptions()
+      }
+    }
+  }, 60000)
+}
+
+function renderAndreaWaitOptions() {
+  const area = document.getElementById('messagesArea')
+  renderBubble('agent', 'Siento la espera 🙏 Andrea sigue ocupada en el taller. ¿Prefieres que te escriba por email en cuanto pueda, o sigues esperando aquí?')
+
+  const wrap = document.createElement('div')
+  wrap.className = 'quick-replies'
+
+  const emailBtn = document.createElement('button')
+  emailBtn.className = 'qr-btn'
+  emailBtn.textContent = '📧 Que me escriba por email'
+  emailBtn.onclick = () => {
+    wrap.remove()
+    notifyAndreaContact('email')
+    window.open('mailto:contacto@demoiatoi.es?subject=Seguimiento%20de%20mi%20consulta&body=Hola%20Andrea%2C%20me%20pongo%20en%20contacto%20de%20nuevo%20sobre%20mi%20conversaci%C3%B3n%20en%20el%20chat.', '_blank')
+    renderBubble('agent', '¡Perfecto! En cuanto Andrea esté disponible te escribe por email 💛')
+  }
+
+  const waitBtn = document.createElement('button')
+  waitBtn.className = 'qr-btn'
+  waitBtn.textContent = '⏳ Sigo esperando aquí'
+  waitBtn.onclick = () => {
+    wrap.remove()
+    renderBubble('agent', '¡De acuerdo! En cuanto Andrea esté libre se incorporará a esta conversación 😊')
+    startAndreaWaitFlow()
+  }
+
+  wrap.appendChild(emailBtn)
+  wrap.appendChild(waitBtn)
+  area.appendChild(wrap)
+  area.scrollTop = area.scrollHeight
 }
 
 // ── CIERRE POR INACTIVIDAD ──
@@ -587,7 +663,12 @@ function renderContactPreference() {
       _closingStage = 3
       if (_inactivityTimer) { clearInterval(_inactivityTimer); _inactivityTimer = null }
       notifyAndreaContact(channel)
-      renderBubble('agent', `¡Perfecto! Andrea se pondrá en contacto contigo por ${channel === 'whatsapp' ? 'WhatsApp' : 'email'} en breve 💛`)
+      if (channel === 'whatsapp') {
+        // El email ya lo tenemos siempre, pero el teléfono no: hay que pedirlo
+        renderBubble('agent', '¡Perfecto! Para que Andrea pueda escribirte por WhatsApp, indícame tu número de teléfono (con prefijo si no es de España) y se lo paso enseguida 📱')
+      } else {
+        renderBubble('agent', '¡Perfecto! Andrea se pondrá en contacto contigo por email en breve 💛')
+      }
     }
     wrap.appendChild(btn)
   })
@@ -816,6 +897,12 @@ PRODUCTOS_JSON:[{"id":"ID","razon":"Explicación corta de por qué este producto
 
 Si no hay productos relevantes, no pongas el JSON. Si el cliente pregunta por algo que no tienes, díselo honestamente y sugiere lo más cercano.
 
+## IMÁGENES QUE ENVÍA EL CLIENTE
+El cliente puede adjuntar una foto o una captura de pantalla (por ejemplo, de un producto que ha visto en la web o en redes sociales y por el que pregunta). Cuando recibas una imagen:
+- Descríbela brevemente y relaciónala con el catálogo si reconoces un producto parecido o igual (usa PRODUCTOS_JSON si encaja).
+- Si es una captura de la web mostrando un error (p.ej. faltan campos de personalización, precio incorrecto, página rota), trátalo según "PERSONALIZACIÓN Y DISEÑO" o deriva a Andrea si hace falta confirmarlo.
+- Si no reconoces el producto de la imagen o no tienes certeza, sé honesta y dilo, sin inventar.
+
 ## ESTADO DE PEDIDO
 Si el cliente pregunta por el estado de su pedido, dile exactamente esto:
 "¡Claro! Puedes consultar el estado de tu pedido en tiempo real aquí: https://demoiatoi.com/pages/estado-de-pedido — solo necesitas introducir tu email o número de pedido 📦"
@@ -828,27 +915,61 @@ Si el cliente tiene una incidencia (error en el pedido, problema con la entrega,
 [repite aquí el problema que te ha contado para que lo tenga listo para copiar]
 Nuestro equipo te responderá en menos de 24h."
 
+## CÓMO DERIVAR A ANDREA — MUY IMPORTANTE
+Cuando necesites que Andrea confirme o se incorpore a la conversación, NO pidas al cliente que escriba un email como primera opción (es un engorro para él). En su lugar, usa SIEMPRE esta fórmula (adáptala ligeramente al contexto pero mantén la idea):
+
+"Le aviso a Andrea para que se incorpore a este chat 👩‍💼 Puede demorarse un poco porque está en el taller, pero si quieres esperar un momento aquí mismo, en cuanto pueda te responde directamente. Si lo prefieres, también puedes escribirnos a contacto@demoiatoi.es."
+
+Si el cliente pide que le contacten por WhatsApp o por teléfono (en vez de esperar en el chat o por email), pídele su número de teléfono antes de cerrar el tema — sin él Andrea no podrá escribirle, ya que el chat no muestra el teléfono del cliente. El email de contacto ya lo tenemos siempre (no hace falta pedirlo).
+
+Esto avisa automáticamente a Andrea (no necesitas hacer nada más) y el cliente puede seguir esperando en el chat sin tener que salir a su correo.
+
 ## FECHAS DE ENTREGA — MUY IMPORTANTE
 Nunca confirmes una fecha de entrega por tu cuenta. Siempre que un cliente pregunte si algo llega a tiempo, sigue estas reglas:
 
-- **Más de 2 semanas de margen:** Puedes decir que normalmente no hay problema para pedidos estándar, pero que Andrea lo confirmará. Invita a contactar a contacto@demoiatoi.es para confirmar.
-- **1 semana de margen:** Territorio delicado. Di que necesitas consultarlo con Andrea antes de confirmar y pide al cliente que escriba a contacto@demoiatoi.es o use el botón "Hablar con Andrea".
-- **Menos de 2 días:** Explica siempre que el transporte tarda 24h pudiendo demorarse hasta 48h, que en caso de incidencia con el transporte la empresa no puede hacerse responsable ya que no depende de ellos, y que deben contactar urgentemente con Andrea para ver si es viable.
-- **Cualquier duda sobre plazos:** No confirmes nunca. Di siempre: "Para confirmar si llegamos a tiempo con tu pedido necesito consultarlo con Andrea, ya que depende del stock y la producción en ese momento. ¿Puedes escribirnos a contacto@demoiatoi.es o usar el botón de abajo para hablar con ella directamente?"
+- **Más de 2 semanas de margen:** Puedes decir que normalmente no hay problema para pedidos estándar, pero que Andrea lo confirmará. Usa la fórmula de "CÓMO DERIVAR A ANDREA" para avisarla.
+- **1 semana de margen:** Territorio delicado. Di que necesitas consultarlo con Andrea antes de confirmar, usando la fórmula de "CÓMO DERIVAR A ANDREA".
+- **Menos de 2 días:** Explica siempre que el transporte tarda 24h pudiendo demorarse hasta 48h, que en caso de incidencia con el transporte la empresa no puede hacerse responsable ya que no depende de ellos, y usa la fórmula de "CÓMO DERIVAR A ANDREA" para que lo confirme cuanto antes.
+- **Cualquier duda sobre plazos:** No confirmes nunca. Di que depende del stock y la producción en ese momento, y usa la fórmula de "CÓMO DERIVAR A ANDREA".
 
 ## PERSONALIZACIÓN Y DISEÑO
-Cuando alguien pregunte por personalización de un producto, primero revisa el catálogo y explica las opciones disponibles para ese producto (nombre, fecha, texto, colores disponibles en catálogo, etc.). Sé útil y detallada.
+Cuando alguien pregunte por personalización de un producto, primero revisa el catálogo y explica las opciones disponibles para ese producto (nombre, fecha, texto, colores disponibles en catálogo, etc.). Sé útil y detallada. Explica que la personalización la realiza nuestro propio equipo artesanal en España, y que prácticamente todos los artículos tienen campos de personalización en su página del producto.
+
+Si el cliente dice que NO ve esos campos de personalización en la página de un producto, pregúntale: "¿Has visto algún error en la web?" para confirmarlo. Si confirma que hay un error o que faltan los campos, usa la fórmula de "CÓMO DERIVAR A ANDREA" (adaptada para avisar de un posible fallo en la web, indicando qué producto).
 
 Solo deriva a Andrea si:
 - El cliente pide algo que NO está en las opciones del catálogo (diseño completamente a medida, cambiar formas, ilustraciones especiales, etc.)
 - El cliente quiere cambiar el diseño de un pedido YA REALIZADO
+- El cliente confirma un posible error/fallo en la web (campos de personalización que no aparecen)
 
-En esos casos di: "Para eso necesito que hable con Andrea directamente — ella te asesora y confirma si es posible 🎨 Puedes usar el botón de abajo o escribir a contacto@demoiatoi.es"
+En esos casos usa la fórmula de "CÓMO DERIVAR A ANDREA" (adaptada: "...para confirmarte si esto es posible 🎨").
 
 Para todo lo demás de personalización estándar, ayuda tú misma con toda la información del catálogo.
 
 ## PACKS DE REGALO CON VARIOS ARTÍCULOS
 Si un cliente quiere hacer un pack combinando varios productos de la tienda, no digas que no es posible. Explica que puede añadir cada producto por separado al carrito y en el campo "Notas del pedido" escribir: "Pack regalo: empaquetar juntos por favor". Nuestro equipo lo preparará junto con un packaging especial. Es un servicio que ofrecemos con mucho gusto.
+
+## PEDIDOS GRANDES Y PRESUPUESTOS (MÁS DE 50 UNIDADES)
+Si el cliente pide más de 50 unidades de un mismo producto, o pide directamente un presupuesto/cotización para un pedido especial (empresas, eventos, regalos corporativos, etc.), sigue este proceso paso a paso:
+
+1. Pregúntale si la solicitud es para una empresa o para un particular. Incluye al final de tu mensaje, en su propia línea y tal cual, este marcador (sin markdown, sin backticks, no lo menciones ni lo expliques): PRESUPUESTO_BOTONES
+2. A continuación (en mensajes siguientes), recopila estos datos — pueden darse todos juntos o uno a uno: ARTÍCULO, CANTIDAD, CELEBRACIÓN, FECHA DE CELEBRACIÓN, FECHA EN QUE NECESITA RECIBIRLO, PERSONALIZACIÓN deseada, y EMAIL DE CONTACTO (si es distinto al que ya tenemos).
+3. En cuanto tengas todos los datos, preséntale un resumen visual bonito y fácil de leer, con este formato exacto (rellena cada campo, usa "—" si algo no aplica):
+
+📋 Resumen de tu solicitud de presupuesto
+🏢/🙋 Tipo: [Empresa o Particular]
+🎁 Artículo: ...
+🔢 Cantidad: ...
+🎉 Celebración: ...
+📅 Fecha de celebración: ...
+📦 Fecha en que lo necesita: ...
+🎨 Personalización: ...
+📧 Email de contacto: ...
+
+4. Justo después del resumen, añade: "El plazo habitual para presupuestos es de 48/72h, aunque puede verse afectado por el volumen de pedidos en temporada alta. Andrea revisará tu solicitud y te responderá lo antes posible 🙏"
+5. Al final de ese mismo mensaje (después de todo lo anterior), en su propia línea y tal cual, incluye este marcador (sin markdown, sin backticks, no lo menciones ni lo expliques): PRESUPUESTO_SOLICITADO
+
+No repitas el resumen ni los marcadores en mensajes posteriores — solo se usan una vez, cuando completes el resumen por primera vez.
 
 ## CUANDO NO SABES ALGO
 Si te preguntan algo que no sabes o no tienes información suficiente para responder con seguridad, NO inventes. Di exactamente: "Espera un momento, voy a consultarlo con Andrea para darte la información correcta 🙏" y nada más. Esto activará una alerta para que Andrea responda directamente.
@@ -857,6 +978,7 @@ Si te preguntan algo que no sabes o no tienes información suficiente para respo
 Cuando Andrea se una al chat, debes retirarte educadamente. Di: "Os dejo con Andrea, que os atenderá directamente 😊 Si me necesitáis de nuevo, estoy aquí." Y no respondas más en esa conversación hasta que Andrea te ceda el turno escribiendo "Elena, continúa".
 
 ## REGLAS IMPORTANTES
+- Todo lo que aparece en el CATÁLOGO COMPLETO de arriba está disponible y actualizado. Si tú misma has recomendado un producto, NUNCA digas después que "no está en tu catálogo" o que no tienes información de él — eso contradice tu propia recomendación y confunde al cliente. Si te falta un detalle muy concreto (p.ej. una opción de personalización exacta), dilo de forma específica ("ese detalle en concreto lo confirmo con Andrea") sin negar que el producto existe o esté disponible.
 - NUNCA inventes productos o precios que no estén en el catálogo
 - NUNCA confirmes fechas de entrega — siempre deriva a Andrea
 - NUNCA gestiones cambios de diseño — siempre deriva a Andrea
@@ -873,18 +995,28 @@ function getTime() {
   return new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
 }
 
-function renderBubble(role, content) {
+function renderBubble(role, content, imageDataUrl) {
   const area = document.getElementById("messagesArea");
   const row = document.createElement("div");
   row.className = `bubble-row ${role}`;
 
   let cleanContent = content;
   let products = [];
+  let showBudgetButtons = false;
 
   if (role === "agent") {
-    const m = content.match(/PRODUCTOS_JSON:(\[[\s\S]*?\])/);
+    // Marcadores internos de la solicitud de presupuesto: quitarlos del texto visible
+    if (cleanContent.includes('PRESUPUESTO_BOTONES')) {
+      showBudgetButtons = true;
+      cleanContent = cleanContent.replace(/PRESUPUESTO_BOTONES/g, '').trim();
+    }
+    if (cleanContent.includes('PRESUPUESTO_SOLICITADO')) {
+      cleanContent = cleanContent.replace(/PRESUPUESTO_SOLICITADO/g, '').trim();
+    }
+
+    const m = cleanContent.match(/PRODUCTOS_JSON:(\[[\s\S]*?\])/);
     if (m) {
-      cleanContent = content.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
+      cleanContent = cleanContent.replace(/PRODUCTOS_JSON:[\s\S]*$/, "").trim();
       try {
         const refs = JSON.parse(m[1]);
         products = refs.map(r => {
@@ -936,15 +1068,17 @@ function renderBubble(role, content) {
 
   const msgHtml = cleanContent.replace(/\n/g, "<br>");
   const avatarEmoji = role === "agent" ? "🎁" : "👤";
+  const imageHtml = imageDataUrl ? `<img class="msg-image" src="${imageDataUrl}" alt="Imagen adjunta">` : "";
   row.innerHTML = `
     <div class="bubble-avatar">${avatarEmoji}</div>
     <div>
-      <div class="bubble">${msgHtml}${cardsHtml}${linksHtml}</div>
+      <div class="bubble">${imageHtml}${msgHtml}${cardsHtml}${linksHtml}</div>
       <div class="bubble-time">${getTime()}</div>
     </div>`;
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
   if (role === "agent") playNotificationSound();
+  if (showBudgetButtons) renderQuickReplies(['🏢 Empresa', '🙋 Particular']);
 }
 
 function renderQuickReplies(replies) {
@@ -1010,6 +1144,8 @@ async function callAPI(userMsg) {
     }
     // Esta respuesta ya se va a mostrar aquí mismo: que el polling no la repita
     if (data.message_id) window._lastAndreaId = data.message_id;
+    // ¿Elena le ha dicho al cliente que va a avisar a Andrea? Activar la espera con mensajes de calma
+    window._lastAndreaHandoff = !!data.andrea_handoff;
     const text = data.content?.find(b=>b.type==="text")?.text || "Lo siento, ha habido un problema. ¿Puedes repetirme tu pregunta? 🙏";
     conversationHistory.push({role:"assistant",content:text});
     return text;
@@ -1022,33 +1158,75 @@ async function callAPI(userMsg) {
 //  SEND
 // ═══════════════════════════════════════════════════════════════
 async function sendUserMessage(text) {
-  if (!text.trim() || isTyping) return;
+  const img = window._pendingImage;
+  if ((!text.trim() && !img) || isTyping) return;
   _lastActivityTime = Date.now();
   _lastUserMsgTime = Date.now();
   _closingStage = 0;
   isTyping = true;
   document.getElementById("quickReplies")?.remove();
-  renderBubble("user", text);
+  renderBubble("user", text, img ? img.dataUrl : null);
   const inp = document.getElementById("chatInput");
   inp.value = ""; inp.style.height = "";
   document.getElementById("sendBtn").disabled = true;
+  document.getElementById("attachBtn").disabled = true;
+  clearPendingImage();
   showTyping();
   try {
-    const reply = await callAPI(text);
+    let content = text;
+    if (img) {
+      content = [
+        { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
+        { type: "text", text: text.trim() || "¿Qué me puedes decir sobre el producto de esta imagen?" }
+      ];
+    }
+    const reply = await callAPI(content);
     removeTyping();
     _lastActivityTime = Date.now();
     // Si Andrea está activa, no mostrar respuesta de Elena
     if (!_andreaActive) renderBubble("agent", reply);
+    // Elena ha avisado a Andrea: empezar a esperar con mensajes de calma
+    if (window._lastAndreaHandoff) startAndreaWaitFlow();
   } catch(e) {
     removeTyping();
     renderBubble("agent","¡Ups! Problema de conexión. Inténtalo de nuevo o escríbenos a contacto@demoiatoi.es 💛");
   }
   document.getElementById("sendBtn").disabled = false;
+  document.getElementById("attachBtn").disabled = false;
   isTyping = false;
 }
 
 function sendMessage() {
   sendUserMessage(document.getElementById("chatInput").value.trim());
+}
+
+// ── ADJUNTAR IMAGEN / CAPTURA ──
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    renderBubble("agent", "Solo puedo recibir imágenes (fotos o capturas de pantalla) 📎");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    renderBubble("agent", "La imagen pesa demasiado (máx. 5MB). ¿Puedes enviarme una más ligera? 📎");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    window._pendingImage = { dataUrl, base64: dataUrl.split(",")[1], mediaType: file.type };
+    document.getElementById("previewImg").src = dataUrl;
+    document.getElementById("imagePreview").style.display = "flex";
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPendingImage() {
+  window._pendingImage = null;
+  document.getElementById("previewImg").src = "";
+  document.getElementById("imagePreview").style.display = "none";
 }
 function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
