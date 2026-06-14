@@ -417,6 +417,12 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 let _andreaActive = false
 let _waitingTimer = null
 let _lastActivityTime = Date.now()
+let _pollTimer = null
+
+function startPolling() {
+  if (_pollTimer) return
+  _pollTimer = setInterval(checkAndreaMessages, 5000)
+}
 
 async function checkAndreaMessages() {
   if (!window._convId) return
@@ -950,7 +956,11 @@ function selectSource(btn, source) {
 function submitSource() {
   const email = window._customerEmail;
   window._customerSource = _selectedSource;
+  // Descartar cualquier conversación previa (de otro email) antes de buscar la de este email
+  window._convId = null;
   try {
+    sessionStorage.removeItem('dmat_conv_id');
+    document.cookie = 'dmat_conv=;max-age=0;path=/';
     sessionStorage.setItem('dmat_email', email);
     document.cookie = `dmat_email=${email};max-age=86400;path=/`;
     fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(email)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
@@ -1004,6 +1014,7 @@ async function showChat() {
   document.getElementById('emailGate').style.display = 'none';
   document.getElementById('messagesArea').style.display = 'flex';
   document.getElementById('inputArea').style.display = 'block';
+  startPolling();
 
   // Si hay conversación previa, cargar los últimos mensajes
   if (window._convId) {
