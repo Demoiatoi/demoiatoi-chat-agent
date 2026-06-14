@@ -31,6 +31,8 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .chat-header-info strong{display:block;color:var(--white);font-size:.95rem;font-weight:600;font-family:var(--font-display)}
 .chat-header-info span{color:rgba(255,255,255,.78);font-size:.75rem}
 .header-badge{background:rgba(255,255,255,.2);color:var(--white);font-size:.68rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.3);flex-shrink:0}
+.sound-toggle{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:var(--white);font-size:.95rem;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;line-height:1}
+.sound-toggle:hover{background:rgba(255,255,255,.32)}
 .messages-area{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
 .messages-area::-webkit-scrollbar{width:4px}
 .messages-area::-webkit-scrollbar-thumb{background:var(--rose-light);border-radius:4px}
@@ -282,6 +284,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
       <strong id="agentNameDisplay">Elena · De Moi à Toi</strong>
       <span>Aquí para ayudarte a encontrar el regalo perfecto ✨</span>
     </div>
+    <button class="sound-toggle" id="soundToggle" onclick="toggleSound()" title="Silenciar/activar sonido de notificaciones">🔊</button>
     <div class="header-badge">En línea</div>
   </div>
   <!-- EMAIL GATE -->
@@ -604,6 +607,37 @@ function renderAndreaBubble(text) {
     </div>`
   area.appendChild(row)
   area.scrollTop = area.scrollHeight
+  playNotificationSound()
+}
+
+// ── SONIDO DE NOTIFICACIÓN ──
+let _soundMuted = localStorage.getItem('dmat_sound_muted') === '1'
+
+function updateSoundIcon() {
+  const btn = document.getElementById('soundToggle')
+  if (btn) {
+    btn.textContent = _soundMuted ? '🔇' : '🔊'
+    btn.title = _soundMuted ? 'Sonido silenciado: pulsa para activarlo' : 'Silenciar sonido de notificaciones'
+  }
+}
+
+function toggleSound() {
+  _soundMuted = !_soundMuted
+  localStorage.setItem('dmat_sound_muted', _soundMuted ? '1' : '0')
+  updateSoundIcon()
+}
+
+function playNotificationSound() {
+  if (_soundMuted) return
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)()
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.connect(g); g.connect(ctx.destination)
+    o.frequency.value = 880; o.type = 'sine'
+    g.gain.setValueAtTime(0.16, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + .35)
+    o.start(ctx.currentTime); o.stop(ctx.currentTime + .35)
+  } catch(e) {}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -773,10 +807,10 @@ ${agentConfig.returns}
 ${agentConfig.extra}
 
 ## CÓMO RECOMENDAR PRODUCTOS
-Cuando el cliente te describa su necesidad, recomienda entre 1 y 3 productos que realmente encajen. Sé selectivo — elige los mejores, no los listes todos.
+Cuando el cliente te describa su necesidad, recomienda entre 3 y 4 productos que realmente encajen (si hay al menos esos disponibles que tengan sentido — nunca incluyas algo que no encaje solo por completar el número). Dale variedad de opciones para que pueda elegir.
 
 Para mostrar productos, incluye al final de tu respuesta este bloque (sin markdown, sin backticks):
-PRODUCTOS_JSON:[{"id":"ID","razon":"Explicación corta de por qué este producto"}]
+PRODUCTOS_JSON:[{"id":"ID","razon":"Explicación corta de por qué este producto"},{"id":"ID2","razon":"..."},{"id":"ID3","razon":"..."}]
 
 Si no hay productos relevantes, no pongas el JSON. Si el cliente pregunta por algo que no tienes, díselo honestamente y sugiere lo más cercano.
 
@@ -908,6 +942,7 @@ function renderBubble(role, content) {
     </div>`;
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
+  if (role === "agent") playNotificationSound();
 }
 
 function renderQuickReplies(replies) {
@@ -1224,6 +1259,7 @@ function contactAndreaEmail() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  updateSoundIcon();
   // Recuperar email y conversación anterior si existe
   try {
   window._customerEmail = sessionStorage.getItem('dmat_email') ||

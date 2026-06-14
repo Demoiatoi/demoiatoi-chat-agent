@@ -333,6 +333,7 @@ let conversations = []
 let currentConvId = null
 let currentFilter = 'all'
 let prevAlertCount = 0
+let knownConvIds = null
 let currentNotice = { urgent_notice: '', urgent_notice_active: false }
 
 // ── INIT ──
@@ -381,6 +382,19 @@ async function loadConversations() {
   const data = await sb('chat_conversations?select=*&order=updated_at.desc')
   if (!data) return
   conversations = data
+
+  // Notificación sutil: nuevo chat iniciado por un cliente
+  const currentIds = new Set(data.map(c => c.id))
+  if (knownConvIds === null) {
+    knownConvIds = currentIds
+  } else {
+    const newOnes = data.filter(c => !knownConvIds.has(c.id))
+    if (newOnes.length) {
+      newOnes.forEach(c => showToast(`💬 Nuevo chat: ${c.customer_email || 'cliente anónimo'}`))
+      playChime()
+    }
+    knownConvIds = currentIds
+  }
 
   // Stats
   const alerts = conversations.filter(c => c.needs_attention && c.status !== 'resolved').length
@@ -706,6 +720,19 @@ function showToast(msg) {
   const t = document.getElementById('toast')
   t.textContent = msg; t.classList.add('show')
   setTimeout(() => t.classList.remove('show'), 3000)
+}
+
+// ── AVISO SUTIL (nuevo chat) ──
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)()
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.connect(g); g.connect(ctx.destination)
+    o.frequency.value = 1320; o.type = 'sine'
+    g.gain.setValueAtTime(0.12, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+.3)
+    o.start(ctx.currentTime); o.stop(ctx.currentTime+.3)
+  } catch(e) {}
 }
 
 // ── ALARMA ──
