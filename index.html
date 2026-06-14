@@ -1087,12 +1087,34 @@ function showAndreaModal() {
 function closeAndreaModal() {
   document.getElementById('andreaModal').style.display = 'none';
 }
+// Avisa al panel de Andrea: marca la conversación como "necesita atención"
+function notifyAndreaContact(channel) {
+  fetch("https://demoiatoi-chat-agent.vercel.app/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      is_contact_request: true,
+      contact_channel: channel,
+      conversation_id: window._convId || null,
+      customer_email: window._customerEmail || null,
+      customer_source: window._customerSource || null
+    })
+  }).then(r => r.json()).then(data => {
+    if (data?.conversation_id && !window._convId) {
+      window._convId = data.conversation_id;
+      sessionStorage.setItem('dmat_conv_id', window._convId);
+      document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
+    }
+  }).catch(() => {});
+}
 function waitForAndrea() {
   closeAndreaModal();
   renderBubble("agent", "¡Perfecto! 👩‍💼 Andrea se unirá a esta conversación en breve. Puedes seguir escribiendo aquí y ella te responderá directamente.");
+  notifyAndreaContact('chat');
 }
 function contactAndreaEmail() {
   closeAndreaModal();
+  notifyAndreaContact('email');
   window.open('mailto:contacto@demoiatoi.es?subject=Quiero%20hablar%20con%20Andrea&body=Hola%20Andrea%2C%20me%20pongo%20en%20contacto%20contigo%20desde%20el%20chat%20de%20la%20tienda.', '_blank');
 }
 

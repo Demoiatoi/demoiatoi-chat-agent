@@ -376,7 +376,11 @@ function renderConvList() {
     const timeStr = isToday ? time : date
 
     const badge = c.needs_attention && c.status !== 'resolved'
-      ? '<span class="badge badge-attention">⚠️ Atención</span>'
+      ? (c.alert_type === 'doubt'
+          ? '<span class="badge badge-attention">❓ Duda de Elena</span>'
+          : c.alert_type === 'contact_request'
+            ? '<span class="badge badge-attention">💬 Quiere hablar</span>'
+            : '<span class="badge badge-attention">⚠️ Atención</span>')
       : c.status === 'resolved'
       ? '<span class="badge badge-resolved">✅ Resuelta</span>'
       : '<span class="badge badge-active">● Activa</span>'
@@ -410,7 +414,14 @@ async function selectConv(id) {
   if (conv?.customer_source) meta.push(`<span class="meta-tag">📍 ${conv.customer_source}</span>`)
   if (conv?.rating) meta.push(`<span class="meta-tag">${'⭐'.repeat(conv.rating)} ${conv.rating}/5</span>`)
   if (conv?.rating_comment) meta.push(`<span class="meta-tag">💬 "${conv.rating_comment}"</span>`)
-  if (conv?.needs_attention) meta.push(`<span class="meta-tag" style="color:var(--orange)">⚠️ Necesita atención</span>`)
+  if (conv?.needs_attention) {
+    const attentionLabel = conv.alert_type === 'doubt'
+      ? '❓ Elena tiene una duda — respóndela y ella se lo dirá al cliente'
+      : conv.alert_type === 'contact_request'
+        ? '💬 El cliente quiere hablar contigo'
+        : '⚠️ Necesita atención'
+    meta.push(`<span class="meta-tag" style="color:var(--orange)">${attentionLabel}</span>`)
+  }
   document.getElementById('chatMeta').innerHTML = meta.join('')
 
   renderConvList()
