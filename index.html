@@ -41,6 +41,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .bubble-row.user{flex-direction:row-reverse}
 .bubble-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--rose-light),var(--rose));display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
 .bubble-row.user .bubble-avatar{background:linear-gradient(135deg,#dde8f5,#a0b4cc)}
+.avatar-wrap img,.bubble-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .bubble{max-width:82%;padding:11px 15px;border-radius:18px;font-size:.875rem;line-height:1.55;word-break:break-word}
 .bubble-row.agent .bubble{background:var(--sand);color:var(--dark);border-bottom-left-radius:5px}
 .bubble-row.user .bubble{background:linear-gradient(135deg,var(--rose-dark),var(--rose));color:var(--white);border-bottom-right-radius:5px}
@@ -288,7 +289,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 <!-- CHAT WIDGET -->
 <div class="chat-widget" id="chatWidget">
   <div class="chat-header">
-    <div class="avatar-wrap">🎁</div>
+    <div class="avatar-wrap" id="agentAvatarWrap">🎁</div>
     <div class="chat-header-info">
       <strong id="agentNameDisplay">Elena · De Moi à Toi</strong>
       <span>Aquí para ayudarte a encontrar el regalo perfecto ✨</span>
@@ -300,7 +301,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="email-gate" id="emailGate">
     <!-- PASO 1: Email -->
     <div class="gate-step active" id="gateStep1">
-      <div class="gate-logo">🎁</div>
+      <div class="gate-logo" id="gateLogo1">🎁</div>
       <div class="gate-title">¡Hola! Para poder ayudarte mejor y hacer seguimiento de tu consulta, necesito tu email 😊</div>
       <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com"
         onkeydown="if(event.key==='Enter') goToStep2()">
@@ -395,6 +396,13 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   <div class="config-row">
     <label>Nombre del agente</label>
     <input type="text" id="cfgName" value="Elena" placeholder="Ej: Marta, Luna, Noa...">
+  </div>
+  <div class="config-row">
+    <label>Foto del agente</label>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="cfgPhotoPreview" style="width:42px;height:42px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--rose-light),var(--rose));display:flex;align-items:center;justify-content:center;font-size:1.25rem;overflow:hidden">🎁</div>
+      <input type="file" id="cfgPhoto" accept="image/png,image/jpeg,image/webp" onchange="handleAgentPhotoSelect(event)" style="flex:1">
+    </div>
   </div>
   <div class="config-row">
     <label>Política de envíos</label>
@@ -728,6 +736,7 @@ function playNotificationSound() {
 // ═══════════════════════════════════════════════════════════════
 let agentConfig = {
   name: "Elena",
+  avatar: null,
   shipping: document.getElementById('cfgShipping').value,
   returns:  document.getElementById('cfgReturns').value,
   extra:    document.getElementById('cfgExtra').value
@@ -1067,7 +1076,7 @@ function renderBubble(role, content, imageDataUrl) {
   }
 
   const msgHtml = cleanContent.replace(/\n/g, "<br>");
-  const avatarEmoji = role === "agent" ? "🎁" : "👤";
+  const avatarEmoji = role === "agent" ? getAgentAvatarHtml() : "👤";
   const imageHtml = imageDataUrl ? `<img class="msg-image" src="${imageDataUrl}" alt="Imagen adjunta">` : "";
   row.innerHTML = `
     <div class="bubble-avatar">${avatarEmoji}</div>
@@ -1106,7 +1115,7 @@ function showTyping() {
   const row = document.createElement("div");
   row.className = "bubble-row agent";
   row.id = "typingRow";
-  row.innerHTML = `<div class="bubble-avatar">🎁</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  row.innerHTML = `<div class="bubble-avatar">${getAgentAvatarHtml()}</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
 }
@@ -1231,12 +1240,39 @@ function clearPendingImage() {
 function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
 
+// ── FOTO DEL AGENTE ──
+function getAgentAvatarHtml() {
+  return agentConfig.avatar ? `<img src="${agentConfig.avatar}" alt="${agentConfig.name}">` : "🎁";
+}
+
+function applyAgentAvatar() {
+  const html = getAgentAvatarHtml();
+  document.getElementById("agentAvatarWrap").innerHTML = html;
+  document.getElementById("gateLogo1").innerHTML = html;
+  document.getElementById("cfgPhotoPreview").innerHTML = html;
+}
+
+function handleAgentPhotoSelect(e) {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { alert("Por favor, selecciona una imagen."); return; }
+  if (file.size > 2 * 1024 * 1024) { alert("La imagen pesa demasiado (máx. 2MB). Prueba con una más ligera."); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    agentConfig.avatar = reader.result;
+    applyAgentAvatar();
+  };
+  reader.readAsDataURL(file);
+}
+
 function saveConfig() {
   agentConfig.name     = document.getElementById("cfgName").value.trim() || "Elena";
   agentConfig.shipping = document.getElementById("cfgShipping").value.trim();
   agentConfig.returns  = document.getElementById("cfgReturns").value.trim();
   agentConfig.extra    = document.getElementById("cfgExtra").value.trim();
   document.getElementById("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
+  applyAgentAvatar();
   conversationHistory = [];
   document.getElementById("messagesArea").innerHTML = "";
   initChat();

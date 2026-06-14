@@ -42,8 +42,8 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 .sidebar-top{padding:12px;border-bottom:1.5px solid var(--sand)}
 .search-box{width:100%;border:1.5px solid var(--sand);border-radius:20px;padding:7px 14px;font-size:.8rem;font-family:var(--font-b);outline:none;background:var(--cream);color:var(--dark);margin-bottom:8px}
 .search-box:focus{border-color:var(--blue-light)}
-.filter-tabs{display:flex;gap:5px}
-.ftab{padding:4px 10px;border-radius:12px;font-size:.7rem;font-weight:600;border:none;cursor:pointer;font-family:var(--font-b);transition:.15s;flex:1;text-align:center}
+.filter-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.ftab{padding:4px 8px;border-radius:12px;font-size:.68rem;font-weight:600;border:none;cursor:pointer;font-family:var(--font-b);transition:.15s;flex:1 1 30%;text-align:center;white-space:nowrap}
 .ftab.active{background:var(--blue);color:white}
 .ftab:not(.active){background:var(--sand);color:var(--warm)}
 .conv-list{flex:1;overflow-y:auto;padding:6px}
@@ -200,6 +200,7 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
       <div class="filter-tabs">
         <button class="ftab active" onclick="setFilter('all',this)">Todas</button>
         <button class="ftab" onclick="setFilter('needs_review',this)">⚠️ Alertas</button>
+        <button class="ftab" onclick="setFilter('budget',this)">📋 Presupuestos</button>
         <button class="ftab" onclick="setFilter('active',this)">Activas</button>
         <button class="ftab" onclick="setFilter('resolved',this)">✅ Resueltas</button>
       </div>
@@ -427,6 +428,7 @@ function renderConvList() {
   let list = conversations
 
   if (currentFilter === 'needs_review') list = list.filter(c => c.needs_attention && c.status !== 'resolved')
+  else if (currentFilter === 'budget') list = list.filter(c => c.alert_type === 'budget_request')
   else if (currentFilter === 'active') list = list.filter(c => c.status === 'active')
   else if (currentFilter === 'resolved') list = list.filter(c => c.status === 'resolved')
 
