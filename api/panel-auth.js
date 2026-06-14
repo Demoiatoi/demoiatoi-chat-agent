@@ -9,7 +9,8 @@ module.exports = async function handler(req, res) {
   // sin revelar el valor. Quitar una vez resuelto el problema de login.
   if (req.method === 'GET') {
     const val = process.env.PANEL_PASSWORD || ''
-    return res.status(200).json({ exists: !!process.env.PANEL_PASSWORD, length: val.length })
+    const related = Object.keys(process.env).filter(k => /PANEL|PASSWORD/i.test(k))
+    return res.status(200).json({ exists: !!process.env.PANEL_PASSWORD, length: val.length, related })
   }
 
   if (req.method !== 'POST') return res.status(405).end()
