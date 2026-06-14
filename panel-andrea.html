@@ -330,14 +330,47 @@ let conversations = []
 let currentConvId = null
 let currentFilter = 'all'
 let prevAlertCount = 0
+let currentNotice = { urgent_notice: '', urgent_notice_active: false }
 
 // ── INIT ──
 async function init() {
   await loadConversations()
+  await loadNotice()
   setInterval(async () => {
     await loadConversations()
     if (currentConvId) await loadMessages(currentConvId)
   }, 5000)
+}
+
+// ── AVISO URGENTE ──
+async function loadNotice() {
+  const data = await sb('store_settings?id=eq.1&select=urgent_notice,urgent_notice_active')
+  if (data && data.length) currentNotice = data[0]
+  document.getElementById('noticeBtn').classList.toggle('notice-active', !!currentNotice.urgent_notice_active)
+}
+
+function openNoticeModal() {
+  document.getElementById('noticeText').value = currentNotice.urgent_notice || ''
+  document.getElementById('noticeActive').checked = !!currentNotice.urgent_notice_active
+  document.getElementById('noticeOverlay').classList.add('show')
+}
+
+function closeNoticeModal() {
+  document.getElementById('noticeOverlay').classList.remove('show')
+}
+
+async function saveNotice() {
+  const text = document.getElementById('noticeText').value.trim()
+  const active = document.getElementById('noticeActive').checked
+  await sb('store_settings?id=eq.1', {
+    method: 'PATCH',
+    prefer: 'return=minimal',
+    body: JSON.stringify({ urgent_notice: text, urgent_notice_active: active, updated_at: new Date().toISOString() })
+  })
+  currentNotice = { urgent_notice: text, urgent_notice_active: active }
+  document.getElementById('noticeBtn').classList.toggle('notice-active', active)
+  closeNoticeModal()
+  showToast(active ? '📢 Aviso activado' : '📢 Aviso guardado (inactivo)')
 }
 
 // ── CARGAR CONVERSACIONES ──
@@ -437,7 +470,9 @@ async function selectConv(id) {
     const attentionLabel = conv.alert_type === 'doubt'
       ? '❓ Elena tiene una duda — respóndela y ella se lo dirá al cliente'
       : conv.alert_type === 'contact_request'
-        ? '💬 El cliente quiere hablar contigo'
+        ? (conv.contact_channel === 'email' ? '💬 Quiere que le contactes por email'
+          : conv.contact_channel === 'whatsapp' ? '💬 Quiere que le contactes por WhatsApp'
+          : '💬 El cliente quiere hablar contigo')
         : '⚠️ Necesita atención'
     meta.push(`<span class="meta-tag" style="color:var(--orange)">${attentionLabel}</span>`)
   }

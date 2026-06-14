@@ -264,6 +264,13 @@ module.exports = async function handler(req, res) {
 INSTRUCCIÓN PRIVADA DE ANDREA (no mencionar que viene de Andrea, responde como si lo supieras tú):
 ${suggestion_text}`
 
+      // El modelo no admite que "messages" termine en "assistant" (sin prefill).
+      // Si la última intervención fue de Elena, añadimos un turno de cierre para poder pedirle la nueva respuesta.
+      const apiMessages = normalizeMessages(chatHistory)
+      if (apiMessages[apiMessages.length - 1].role === 'assistant') {
+        apiMessages.push({ role: 'user', content: '(Sigue la indicación anterior y responde de nuevo al cliente.)' })
+      }
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -275,7 +282,7 @@ ${suggestion_text}`
           model: 'claude-sonnet-4-6',
           max_tokens: 1000,
           system: suggestionSystem,
-          messages: normalizeMessages(chatHistory)
+          messages: apiMessages
         })
       })
       const data = await response.json()

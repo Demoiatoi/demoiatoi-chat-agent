@@ -418,10 +418,16 @@ let _andreaActive = false
 let _waitingTimer = null
 let _lastActivityTime = Date.now()
 let _pollTimer = null
+let _lastUserMsgTime = Date.now()
+let _closingStage = 0 // 0=normal, 1=avisado, 2=aviso de cierre, 3=resuelta
+let _inactivityTimer = null
+let _pausedForAndrea = false
 
 function startPolling() {
   if (_pollTimer) return
   _pollTimer = setInterval(checkAndreaMessages, 5000)
+  _lastUserMsgTime = Date.now()
+  _inactivityTimer = setInterval(checkInactivity, 20000)
 }
 
 async function checkAndreaMessages() {
@@ -495,6 +501,94 @@ function startWaitingMessages() {
 
 function stopWaitingMessages() {
   if (_waitingTimer) { clearInterval(_waitingTimer); _waitingTimer = null }
+}
+
+// ── CIERRE POR INACTIVIDAD ──
+async function checkInactivity() {
+  if (_andreaActive || _pausedForAndrea || !window._convId) return
+  const elapsed = Date.now() - _lastUserMsgTime
+
+  if (_closingStage === 0 && elapsed > 2 * 60 * 1000) {
+    _closingStage = 1
+    renderBubble('agent', '¿He resuelto tu consulta? 😊 ¿Puedo ayudarte en algo más?')
+  } else if (_closingStage === 1 && elapsed > 4 * 60 * 1000) {
+    _closingStage = 2
+    renderBubble('agent', 'Esta conversación se cerrará en unos minutos por falta de actividad. Si lo prefieres, podemos seguir en contacto de otra forma 🙏')
+    renderClosingOptions()
+  } else if (_closingStage === 2 && elapsed > 5 * 60 * 1000) {
+    _closingStage = 3
+    if (_inactivityTimer) { clearInterval(_inactivityTimer); _inactivityTimer = null }
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}&select=needs_attention`,
+        { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+      )
+      const data = await res.json()
+      if (!data?.[0]?.needs_attention) {
+        await fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}`, {
+          method: 'PATCH',
+          headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: 'resolved', updated_at: new Date().toISOString() })
+        })
+      }
+    } catch(e) {}
+    renderBubble('agent', '¡Gracias por contactarnos! Si no tienes más dudas, nos encantaría conocer tu opinión sobre la atención recibida 💛')
+    showRating()
+  }
+}
+
+function renderClosingOptions() {
+  const area = document.getElementById('messagesArea')
+  const wrap = document.createElement('div')
+  wrap.className = 'quick-replies'
+
+  const emailBtn = document.createElement('button')
+  emailBtn.className = 'qr-btn'
+  emailBtn.textContent = '📧 Enviarme un email'
+  emailBtn.onclick = () => {
+    wrap.remove()
+    _closingStage = 3
+    if (_inactivityTimer) { clearInterval(_inactivityTimer); _inactivityTimer = null }
+    notifyAndreaContact('email')
+    window.open('mailto:contacto@demoiatoi.es?subject=Seguimiento%20de%20mi%20consulta&body=Hola%2C%20me%20pongo%20en%20contacto%20de%20nuevo%20sobre%20mi%20conversaci%C3%B3n%20en%20el%20chat.', '_blank')
+    renderBubble('agent', '¡Perfecto! Te dejamos el email abierto 📧 Si tienes más dudas, podemos seguir hablando aquí cuando quieras.')
+  }
+
+  const contactBtn = document.createElement('button')
+  contactBtn.className = 'qr-btn'
+  contactBtn.textContent = '📲 Prefiero que me contacten'
+  contactBtn.onclick = () => {
+    wrap.remove()
+    renderContactPreference()
+  }
+
+  wrap.appendChild(emailBtn)
+  wrap.appendChild(contactBtn)
+  area.appendChild(wrap)
+  area.scrollTop = area.scrollHeight
+}
+
+function renderContactPreference() {
+  const area = document.getElementById('messagesArea')
+  const wrap = document.createElement('div')
+  wrap.className = 'quick-replies'
+
+  ;[['✉️ Por email', 'email'], ['📱 Por WhatsApp', 'whatsapp']].forEach(([label, channel]) => {
+    const btn = document.createElement('button')
+    btn.className = 'qr-btn'
+    btn.textContent = label
+    btn.onclick = () => {
+      wrap.remove()
+      _closingStage = 3
+      if (_inactivityTimer) { clearInterval(_inactivityTimer); _inactivityTimer = null }
+      notifyAndreaContact(channel)
+      renderBubble('agent', `¡Perfecto! Andrea se pondrá en contacto contigo por ${channel === 'whatsapp' ? 'WhatsApp' : 'email'} en breve 💛`)
+    }
+    wrap.appendChild(btn)
+  })
+
+  area.appendChild(wrap)
+  area.scrollTop = area.scrollHeight
 }
 
 function renderAndreaBubble(text) {
@@ -878,6 +972,8 @@ async function callAPI(userMsg) {
 async function sendUserMessage(text) {
   if (!text.trim() || isTyping) return;
   _lastActivityTime = Date.now();
+  _lastUserMsgTime = Date.now();
+  _closingStage = 0;
   isTyping = true;
   document.getElementById("quickReplies")?.remove();
   renderBubble("user", text);
@@ -1089,6 +1185,7 @@ function closeAndreaModal() {
 }
 // Avisa al panel de Andrea: marca la conversación como "necesita atención"
 function notifyAndreaContact(channel) {
+  _pausedForAndrea = true
   fetch("https://demoiatoi-chat-agent.vercel.app/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
