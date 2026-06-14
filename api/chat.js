@@ -18,6 +18,21 @@ function detectsDoubt(text) {
   return DOUBT_SIGNALS.some(s => lower.includes(s))
 }
 
+// Frases que indican que Elena le dice al cliente que va a avisar/consultar a Andrea
+const ANDREA_HANDOFF_SIGNALS = [
+  'avisar a andrea', 'aviso a andrea', 'avisarla', 'avisarle a andrea',
+  'consultar con andrea', 'consultarlo con andrea', 'consultarlo con ella',
+  'preguntarle a andrea', 'preguntar a andrea', 'hablar con andrea',
+  'decírselo a andrea', 'comentárselo a andrea', 'lo comento con andrea',
+  'pasar tu mensaje a andrea', 'paso tu mensaje a andrea',
+  'andrea se pondrá en contacto', 'andrea te responderá', 'que te responda andrea'
+]
+
+function detectsAndreaHandoff(text) {
+  const lower = text.toLowerCase()
+  return ANDREA_HANDOFF_SIGNALS.some(s => lower.includes(s))
+}
+
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
 const DEFAULT_SYSTEM = `Eres Elena, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
 
@@ -359,8 +374,9 @@ ${suggestion_text}`
     const data = await response.json()
     const assistantText = data.content?.[0]?.text || ''
 
-    // ── DETECTAR DUDA ──
+    // ── DETECTAR DUDA O AVISO A ANDREA ──
     const hasDoubt = detectsDoubt(assistantText)
+    const handoffToAndrea = detectsAndreaHandoff(assistantText)
 
     if (convId) {
       await supabase.from('chat_messages').insert({
@@ -376,6 +392,14 @@ ${suggestion_text}`
           needs_attention: true,
           needs_clarification: true,
           alert_type: 'doubt',
+          updated_at: new Date().toISOString()
+        }).eq('id', convId)
+      } else if (handoffToAndrea) {
+        // Elena le ha dicho al cliente que avisará a Andrea: que salte la alerta de verdad
+        await supabase.from('chat_conversations').update({
+          needs_attention: true,
+          alert_type: 'contact_request',
+          contact_channel: 'chat',
           updated_at: new Date().toISOString()
         }).eq('id', convId)
       } else {
