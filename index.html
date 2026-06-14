@@ -776,6 +776,8 @@ function renderBubble(role, content) {
   // Convertir enlaces sueltos del mensaje en botones clicables
   let linksHtml = "";
   if (role === "agent") {
+    // Si el modelo escribe enlaces en formato markdown [texto](url), quedarnos solo con la url
+    cleanContent = cleanContent.replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, "$2");
     const urls = [...new Set(cleanContent.match(/https?:\/\/\S+/g) || [])];
     if (urls.length) {
       cleanContent = cleanContent

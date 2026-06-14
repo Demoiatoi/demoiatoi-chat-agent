@@ -132,7 +132,8 @@ Instrucciones:
 - "En producción": dile que ya está en producción, que el equipo lo está preparando con cariño.
 - "Enviado": dile que ya ha salido del taller. Si hay enlace de seguimiento, dáselo junto con el transportista y el número de seguimiento.
 - Si hay varios pedidos, resume el estado de cada uno usando su número de pedido.
-- No menciones tags, IDs internos ni la palabra "fulfillment".`
+- No menciones tags, IDs internos ni la palabra "fulfillment".
+- Escribe el enlace de seguimiento como URL en texto plano (NUNCA en formato markdown [texto](url)).`
 }
 
 module.exports = async function handler(req, res) {
