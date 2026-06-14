@@ -18,6 +18,123 @@ function detectsDoubt(text) {
   return DOUBT_SIGNALS.some(s => lower.includes(s))
 }
 
+// Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
+const DEFAULT_SYSTEM = `Eres Sofía, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
+
+// La API de Anthropic exige que "messages" empiece en "user" y alterne user/assistant sin repetir rol
+function normalizeMessages(list) {
+  const merged = []
+  for (const m of (list || [])) {
+    if (!m || !m.content) continue
+    const role = m.role === 'assistant' ? 'assistant' : 'user'
+    if (merged.length && merged[merged.length - 1].role === role) {
+      merged[merged.length - 1].content += '\n' + m.content
+    } else {
+      merged.push({ role, content: m.content })
+    }
+  }
+  if (!merged.length) {
+    merged.push({ role: 'user', content: '...' })
+  } else if (merged[0].role !== 'user') {
+    merged.unshift({ role: 'user', content: '...' })
+  }
+  return merged
+}
+
+// Frases que indican que el cliente pregunta por el estado de un pedido suyo
+const ORDER_STATUS_SIGNALS = [
+  'estado de mi pedido', 'estado del pedido', 'mi pedido', 'mis pedidos',
+  'donde esta mi pedido', 'dónde está mi pedido', 'cuando llega', 'cuándo llega',
+  'ha llegado', 'ha sido enviado', 'esta enviado', 'está enviado',
+  'seguimiento', 'tracking', 'numero de pedido', 'número de pedido',
+  'mi envío', 'mi envio'
+]
+
+function isOrderStatusQuery(text) {
+  const lower = (text || '').toLowerCase()
+  return ORDER_STATUS_SIGNALS.some(s => lower.includes(s))
+}
+
+// Mapea un pedido de Shopify a la etapa real para el cliente
+function getOrderStage(order) {
+  const tags = (order.tags || []).map(t => t.toLowerCase())
+  if (order.displayFulfillmentStatus === 'FULFILLED' || tags.includes('estado-erp-enviado')) {
+    return 'enviado'
+  }
+  if (order.displayFulfillmentStatus === 'IN_PROGRESS' || tags.includes('estado-erp-en-produccion')) {
+    return 'en_produccion'
+  }
+  return 'registrado'
+}
+
+const ORDER_STAGE_LABELS = {
+  registrado: 'Registrado, pendiente de pasar a producción',
+  en_produccion: 'En producción (nuestro equipo lo está preparando)',
+  enviado: 'Enviado'
+}
+
+// Consulta los pedidos más recientes de un email en Shopify (Admin GraphQL API)
+async function fetchRecentOrders(email) {
+  const domain = process.env.SHOPIFY_STORE_DOMAIN
+  const token = process.env.SHOPIFY_ADMIN_TOKEN
+  if (!domain || !token) return []
+
+  const query = `
+    query($q: String!) {
+      orders(first: 3, query: $q, sortKey: CREATED_AT, reverse: true) {
+        edges {
+          node {
+            name
+            displayFulfillmentStatus
+            tags
+            fulfillments(first: 1) {
+              trackingInfo { company number url }
+            }
+          }
+        }
+      }
+    }`
+
+  const resp = await fetch(`https://${domain}/admin/api/2025-10/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': token
+    },
+    body: JSON.stringify({ query, variables: { q: `email:'${email}' status:any` } })
+  })
+  if (!resp.ok) return []
+  const json = await resp.json()
+  return (json?.data?.orders?.edges || []).map(e => e.node)
+}
+
+// Construye el bloque de contexto con el estado real de los pedidos del cliente
+function buildOrderStatusBlock(orders) {
+  if (!orders || !orders.length) return ''
+
+  const lines = orders.map(o => {
+    const stage = getOrderStage(o)
+    let line = `- Pedido ${o.name}: ${ORDER_STAGE_LABELS[stage]}`
+    if (stage === 'enviado') {
+      const tracking = o.fulfillments?.[0]?.trackingInfo?.[0]
+      if (tracking?.url) {
+        line += ` · Transportista: ${tracking.company || 'transportista'} · Nº seguimiento: ${tracking.number || '—'} · Enlace de seguimiento: ${tracking.url}`
+      }
+    }
+    return line
+  })
+
+  return `\n\nINFORMACIÓN REAL DE PEDIDOS DE ESTE CLIENTE (usa esto, no la respuesta genérica de "ESTADO DE PEDIDO"):
+${lines.join('\n')}
+
+Instrucciones:
+- "Registrado": dile que está registrado y en cola, que pronto entrará en producción.
+- "En producción": dile que ya está en producción, que el equipo lo está preparando con cariño.
+- "Enviado": dile que ya ha salido del taller. Si hay enlace de seguimiento, dáselo junto con el transportista y el número de seguimiento.
+- Si hay varios pedidos, resume el estado de cada uno usando su número de pedido.
+- No menciones tags, IDs internos ni la palabra "fulfillment".`
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -32,6 +149,8 @@ module.exports = async function handler(req, res) {
       is_suggestion, suggestion_text, is_contact_request, contact_channel,
       andrea_reply_to_doubt, doubt_message_id
     } = req.body
+
+    const baseSystem = (system && system.trim()) ? system : DEFAULT_SYSTEM
 
     let convId = conversation_id
 
@@ -127,7 +246,7 @@ module.exports = async function handler(req, res) {
         ? `\n\nCONOCIMIENTO PRIVADO (usa esto para responder, no menciones la fuente):\n${knowledgeItems.join('\n')}`
         : ''
 
-      const suggestionSystem = `${system}${knowledgeBlock}
+      const suggestionSystem = `${baseSystem}${knowledgeBlock}
 
 INSTRUCCIÓN PRIVADA DE ANDREA (no mencionar que viene de Andrea, responde como si lo supieras tú):
 ${suggestion_text}`
@@ -143,7 +262,7 @@ ${suggestion_text}`
           model: 'claude-sonnet-4-6',
           max_tokens: 1000,
           system: suggestionSystem,
-          messages: chatHistory.length > 0 ? chatHistory : [{ role: 'user', content: '...' }]
+          messages: normalizeMessages(chatHistory)
         })
       })
       const data = await response.json()
@@ -190,7 +309,18 @@ ${suggestion_text}`
       ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO (úsalo naturalmente, sin mencionar la fuente):\n${knowledgeItems.join('\n')}`
       : ''
 
-    const finalSystem = system + knowledgeBlock
+    // ── ESTADO REAL DE PEDIDOS (Shopify) ──
+    let orderStatusBlock = ''
+    if (customer_email && isOrderStatusQuery(lastUserMsg.content)) {
+      try {
+        const orders = await fetchRecentOrders(customer_email)
+        orderStatusBlock = buildOrderStatusBlock(orders)
+      } catch (e) {
+        console.error('fetchRecentOrders failed', e)
+      }
+    }
+
+    const finalSystem = baseSystem + knowledgeBlock + orderStatusBlock
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -203,7 +333,7 @@ ${suggestion_text}`
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: finalSystem,
-        messages
+        messages: normalizeMessages(messages)
       })
     })
     const data = await response.json()
