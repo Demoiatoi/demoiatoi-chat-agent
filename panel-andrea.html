@@ -105,6 +105,9 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 .msg-row.andrea .msg-bubble{background:linear-gradient(135deg,#c05a52,#e8837a);color:white;border-bottom-right-radius:3px}
 .msg-time{font-size:.62rem;color:var(--warm);margin-top:3px}
 .msg-row.assistant .msg-time,.msg-row.andrea .msg-time{text-align:right}
+.msg-links{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.msg-link-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:#fff!important;padding:8px 13px;border-radius:18px;font-size:.78rem;font-weight:600;text-decoration:none;transition:opacity .2s}
+.msg-link-btn:hover{opacity:.9}
 
 /* INPUT ANDREA */
 .andrea-input-area{padding:12px 16px;background:var(--white);border-top:1.5px solid var(--sand);flex-shrink:0}
@@ -497,6 +500,31 @@ async function loadMessages(convId) {
   }
 }
 
+// Convierte enlaces sueltos o en formato markdown en botones clicables (igual que en el chat del cliente)
+function extractLinkButtons(text) {
+  let cleanContent = text.replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, "$2")
+  const urls = [...new Set(cleanContent.match(/https?:\/\/\S+/g) || [])]
+  let linksHtml = ''
+  if (urls.length) {
+    cleanContent = cleanContent
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/👉/g, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/:\s*[—–-]\s*/g, ": ")
+      .split("\n").map(l => l.replace(/[\s:–—-]+$/, "").trim()).filter(l => l !== "")
+      .join("\n").trim()
+    linksHtml = '<div class="msg-links">' + urls.map(u => {
+      const label = u.includes('estado-de-pedido')
+        ? '📦 Consultar estado de mi pedido'
+        : /correos|seur|mrw|gls|dhl|ups|fedex|nacex|tourline|envialia|tracking/i.test(u)
+          ? '📦 Seguir mi envío'
+          : '🔗 Abrir enlace'
+      return `<a class="msg-link-btn" href="${u}" target="_blank" rel="noopener">${label}</a>`
+    }).join('') + '</div>'
+  }
+  return { cleanContent, linksHtml }
+}
+
 function renderMessages(messages) {
   const area = document.getElementById('messagesArea')
   const atBottom = area.scrollHeight - area.clientHeight <= area.scrollTop + 60
@@ -508,12 +536,19 @@ function renderMessages(messages) {
     const avatar = isAndrea ? '👩‍💼' : m.role==='user' ? '👤' : '🎁'
     const avClass = isAndrea ? 'andrea-av' : m.role==='user' ? 'user-av' : 'agent-av'
     const label = isAndrea ? 'Andrea' : m.role==='user' ? 'Cliente' : 'Elena (IA)'
-    const clean = m.content.replace(/PRODUCTOS_JSON:[\s\S]*$/,'').replace(/\n/g,'<br>')
+    let content = m.content.replace(/PRODUCTOS_JSON:[\s\S]*$/,'')
+    let linksHtml = ''
+    if (!isAndrea && m.role === 'assistant') {
+      const extracted = extractLinkButtons(content)
+      content = extracted.cleanContent
+      linksHtml = extracted.linksHtml
+    }
+    const clean = content.replace(/\n/g,'<br>')
     return `<div class="msg-row ${role}">
       <div class="msg-avatar ${avClass}">${avatar}</div>
       <div class="msg-wrap">
         <div class="msg-label">${label}</div>
-        <div class="msg-bubble">${clean}</div>
+        <div class="msg-bubble">${clean}${linksHtml}</div>
         <div class="msg-time">${time}</div>
       </div>
     </div>`
