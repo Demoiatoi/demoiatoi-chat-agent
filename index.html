@@ -529,8 +529,7 @@ function renderAndreaWaitOptions() {
   emailBtn.onclick = () => {
     wrap.remove()
     notifyAndreaContact('email')
-    window.open('mailto:contacto@demoiatoi.es?subject=Seguimiento%20de%20mi%20consulta&body=Hola%20Andrea%2C%20me%20pongo%20en%20contacto%20de%20nuevo%20sobre%20mi%20conversaci%C3%B3n%20en%20el%20chat.', '_blank')
-    renderBubble('agent', '¡Perfecto! En cuanto Andrea esté disponible te escribe por email 💛')
+    renderBubble('agent', `¡Perfecto! Le aviso a Andrea para que te escriba a ${window._customerEmail} en cuanto esté disponible 💛 Si prefieres que te conteste por WhatsApp, dime tu número y se lo paso también 📱`)
   }
 
   const waitBtn = document.createElement('button')
@@ -595,8 +594,7 @@ function renderClosingOptions() {
     _closingStage = 3
     if (_inactivityTimer) { clearInterval(_inactivityTimer); _inactivityTimer = null }
     notifyAndreaContact('email')
-    window.open('mailto:contacto@demoiatoi.es?subject=Seguimiento%20de%20mi%20consulta&body=Hola%2C%20me%20pongo%20en%20contacto%20de%20nuevo%20sobre%20mi%20conversaci%C3%B3n%20en%20el%20chat.', '_blank')
-    renderBubble('agent', '¡Perfecto! Te dejamos el email abierto 📧 Si tienes más dudas, podemos seguir hablando aquí cuando quieras.')
+    renderBubble('agent', `¡Perfecto! Andrea te escribirá a ${window._customerEmail} en cuanto esté disponible 💛 Si tienes más dudas, podemos seguir hablando aquí cuando quieras.`)
   }
 
   const contactBtn = document.createElement('button')
