@@ -731,6 +731,16 @@ function incidentCardHtml(inc) {
     </div>
 
     <div class="form-section">
+      <label>Dirección de envío</label>
+      <input type="text" id="incAddress_${inc.id}" value="${inc.address || ''}" placeholder="Dirección completa">
+    </div>
+
+    <div class="form-section">
+      <label>Teléfono de contacto</label>
+      <input type="text" id="incPhone_${inc.id}" value="${inc.phone || ''}" placeholder="Teléfono">
+    </div>
+
+    <div class="form-section">
       <label>Tipo de resolución</label>
       <select id="incResType_${inc.id}" onchange="toggleIncidentResolutionFields(${inc.id})">
         <option value="" ${resolution === '' ? 'selected' : ''}>— Sin definir —</option>
@@ -775,6 +785,8 @@ async function saveIncident(id) {
   const body = {
     reason: document.getElementById(`incReason_${id}`).value.trim(),
     deadline: document.getElementById(`incDeadline_${id}`).value || null,
+    address: document.getElementById(`incAddress_${id}`).value.trim(),
+    phone: document.getElementById(`incPhone_${id}`).value.trim(),
     resolution_type: document.getElementById(`incResType_${id}`).value || null,
     tracking_info: document.getElementById(`incTrackingInput_${id}`).value.trim(),
     replacement_info: document.getElementById(`incReplacementInput_${id}`).value.trim(),

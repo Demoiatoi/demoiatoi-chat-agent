@@ -43,6 +43,26 @@ function detectsOrderIncident(text) {
   return text.includes('AVISO_INCIDENCIA_PEDIDO')
 }
 
+// Extrae el bloque DATOS_INCIDENCIA...FIN_DATOS_INCIDENCIA que Elena rellena
+// con el motivo completo y los datos de contacto antes de registrar la incidencia
+function parseIncidentData(text) {
+  const data = { pedido: '', motivo: '', fecha_entrega: '', direccion: '', telefono: '', email: '' }
+  const block = text.match(/DATOS_INCIDENCIA([\s\S]*?)FIN_DATOS_INCIDENCIA/)
+  if (!block) return data
+  const getField = (label) => {
+    const m = block[1].match(new RegExp(label + ':\\s*(.*)'))
+    const value = m ? m[1].trim() : ''
+    return /^sin especificar$/i.test(value) ? '' : value
+  }
+  data.pedido = getField('PEDIDO')
+  data.motivo = getField('MOTIVO')
+  data.fecha_entrega = getField('FECHA_ENTREGA')
+  data.direccion = getField('DIRECCION')
+  data.telefono = getField('TELEFONO')
+  data.email = getField('EMAIL')
+  return data
+}
+
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
 const DEFAULT_SYSTEM = `Eres Elena, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
 
@@ -570,17 +590,38 @@ ${suggestion_text}`
     // Si Elena ha registrado una incidencia de pedido, creamos el registro y le
     // damos al cliente un número de incidencia (mismo "id" que verá Andrea en el panel)
     if (orderIncident && convId) {
-      const orderNumber = extractOrderNumber(lastUserText, true)
+      const incidentData = parseIncidentData(assistantText)
+      const orderNumber = extractOrderNumber(incidentData.pedido, true) || extractOrderNumber(lastUserText, true)
+      const email = extractEmailFromText(incidentData.email) || customer_email || null
+      const deadline = /^\d{4}-\d{2}-\d{2}$/.test(incidentData.fecha_entrega) ? incidentData.fecha_entrega : null
+
       const { data: incidentRow } = await supabase.from('order_incidents').insert({
         conversation_id: convId,
-        customer_email: customer_email || null,
+        customer_email: email,
         order_number: orderNumber,
-        reason: lastUserText,
+        reason: incidentData.motivo || lastUserText,
+        deadline,
+        address: incidentData.direccion,
+        phone: incidentData.telefono,
         status: 'pendiente'
       }).select('id').single()
 
-      assistantText = assistantText.replace(/AVISO_INCIDENCIA_PEDIDO/g, '').trim()
-        + `\n\nTu número de incidencia es **#${incidentRow?.id}**. Guárdalo por si necesitas consultarlo 💛`
+      const fechaEntregaEs = deadline ? deadline.split('-').reverse().join('/') : 'No especificada'
+      const ticketSummary = `🎫 **Incidencia #${incidentRow?.id} registrada**
+
+📝 **Motivo:** ${incidentData.motivo || lastUserText}
+📦 **Pedido:** ${orderNumber ? '#' + orderNumber : 'No indicado'}
+📍 **Dirección de envío:** ${incidentData.direccion || 'No indicada'}
+📅 **Fecha máxima de entrega:** ${fechaEntregaEs}
+🔴 **Estado:** Pendiente de gestión
+
+Guarda este número de ticket (#${incidentRow?.id}) por si necesitas consultarlo 💛`
+
+      assistantText = assistantText
+        .replace(/DATOS_INCIDENCIA[\s\S]*?FIN_DATOS_INCIDENCIA/, '')
+        .replace(/AVISO_INCIDENCIA_PEDIDO/g, '')
+        .trim()
+        + `\n\n${ticketSummary}`
     }
 
     let assistantMsgId = null
