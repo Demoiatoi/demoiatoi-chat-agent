@@ -346,6 +346,10 @@ const HTML = `
 // ═══════════════════════════════════════════════════════════════
 const host = document.createElement('div');
 host.id = 'dmat-agent-host';
+// Forzamos display con !important: algunos temas de Shopify ocultan
+// por CSS los divs vacíos (sin hijos en el DOM normal), y este div
+// no tiene hijos visibles fuera del Shadow DOM.
+host.style.setProperty('display', 'block', 'important');
 document.body.appendChild(host);
 const root = host.attachShadow({ mode: 'open' });
 
