@@ -1,29 +1,41 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agente de Ventas – De Moi à Toi Regalos</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
+(function(){
+if (window.__dmatAgentLoaded) return;
+window.__dmatAgentLoaded = true;
+
+const CONFIG = window.DMAT_AGENT || {};
+const AGENT_NAME_CFG = CONFIG.agentName || "Elena";
+const STORE_URL = CONFIG.storeUrl || "https://demoiatoi.com";
+
+// ═══════════════════════════════════════════════════════════════
+//  GOOGLE FONTS (global document head, not shadow-scoped)
+// ═══════════════════════════════════════════════════════════════
+(function injectFonts(){
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap";
+  document.head.appendChild(link);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  STYLES
+// ═══════════════════════════════════════════════════════════════
+const STYLES = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
+:host{
   --rose:#4a7fa5;--rose-light:#b8d4e8;--rose-dark:#2c5f7a;
   --cream:#f0f5f9;--sand:#dceaf3;--warm-gray:#6b8fa3;
   --dark:#1a2e3a;--white:#ffffff;
   --shadow:0 8px 32px rgba(45,35,32,.12);
   --radius:18px;--radius-sm:10px;
   --font-display:'Playfair Display',serif;--font-body:'DM Sans',sans-serif;
+  all: initial;
 }
-body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px}
-.demo-header{text-align:center;margin-bottom:24px;max-width:560px}
-.demo-header h1{font-family:var(--font-display);font-size:1.9rem;color:var(--dark);margin-bottom:8px}
-.demo-header h1 em{color:var(--rose);font-style:italic}
-.demo-header p{color:var(--warm-gray);font-size:.9rem;line-height:1.6}
-.embed-note{background:var(--sand);border-left:3px solid var(--rose);padding:12px 16px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:.82rem;color:var(--warm-gray);max-width:560px;margin-bottom:24px;width:100%}
-.embed-note code{background:rgba(232,131,122,.15);padding:2px 6px;border-radius:4px;font-size:.8rem;color:var(--rose-dark)}
 /* CHAT */
-.chat-widget{width:100%;max-width:420px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow),0 2px 8px rgba(232,131,122,.15);display:flex;flex-direction:column;overflow:hidden;height:620px;position:relative}
+.chat-widget{position:fixed;bottom:20px;right:20px;z-index:999999;width:100%;max-width:420px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow),0 2px 8px rgba(232,131,122,.15);flex-direction:column;overflow:hidden;height:620px;display:none;font-family:var(--font-body);color:var(--dark)}
+.chat-widget.dmat-open{display:flex}
+@media (max-width:480px){
+  .chat-widget{width:calc(100vw - 24px);height:calc(100vh - 90px);right:12px;bottom:80px;max-width:none}
+}
 .chat-header{background:linear-gradient(135deg,var(--rose-dark) 0%,var(--rose) 100%);padding:18px 20px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .avatar-wrap{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:1.25rem;border:2px solid rgba(255,255,255,.4);flex-shrink:0;position:relative}
 .avatar-wrap::after{content:'';position:absolute;bottom:1px;right:1px;width:9px;height:9px;background:#4ade80;border-radius:50%;border:2px solid var(--rose)}
@@ -33,6 +45,8 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .header-badge{background:rgba(255,255,255,.2);color:var(--white);font-size:.68rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.3);flex-shrink:0}
 .sound-toggle{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:var(--white);font-size:.95rem;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;line-height:1}
 .sound-toggle:hover{background:rgba(255,255,255,.32)}
+.dmat-close-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:var(--white);font-size:.85rem;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;line-height:1}
+.dmat-close-btn:hover{background:rgba(255,255,255,.32)}
 .messages-area{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
 .messages-area::-webkit-scrollbar{width:4px}
 .messages-area::-webkit-scrollbar-thumb{background:var(--rose-light);border-radius:4px}
@@ -91,14 +105,6 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .image-preview button:hover{color:var(--rose-dark)}
 .msg-image{max-width:180px;max-height:180px;border-radius:12px;display:block;margin-bottom:6px;object-fit:cover}
 .powered-by{text-align:center;font-size:.65rem;color:var(--warm-gray);margin-top:8px;opacity:.7}
-/* Embed */
-.embed-section{max-width:420px;width:100%;margin-top:20px;background:var(--dark);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
-.embed-section h3{font-family:var(--font-display);font-size:1rem;color:var(--cream);margin-bottom:12px}
-.embed-section h3 span{color:var(--rose-light)}
-.code-block{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:14px;font-family:'Courier New',monospace;font-size:.72rem;color:#f0c4c0;white-space:pre-wrap;word-break:break-all;line-height:1.6;margin-bottom:10px}
-.copy-btn{background:var(--rose);color:white;border:none;border-radius:var(--radius-sm);padding:8px 16px;font-size:.78rem;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:background .2s}
-.copy-btn:hover{background:var(--rose-dark)}
-.copy-btn.copied{background:#4ade80;color:var(--dark)}
 /* BOTÓN ANDREA */
 .andrea-bar{
   padding:10px 16px;
@@ -119,7 +125,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   border-radius:20px;
   padding:7px 16px;
   font-size:.78rem;
-  font-family:var(--font-b);
+  font-family:var(--font-body);
   font-weight:600;
   cursor:pointer;
   transition:background .18s, transform .12s;
@@ -150,82 +156,28 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
   text-align:center;
 }
 .modal-icon{font-size:2.2rem;margin-bottom:12px;display:block}
-.modal-box h3{font-family:var(--font-d);font-size:1.1rem;color:var(--dark);margin-bottom:10px}
-.modal-box p{font-size:.84rem;color:var(--warm);line-height:1.6;margin-bottom:18px}
+.modal-box h3{font-family:var(--font-display);font-size:1.1rem;color:var(--dark);margin-bottom:10px}
+.modal-box p{font-size:.84rem;color:var(--warm-gray);line-height:1.6;margin-bottom:18px}
 .modal-box p strong{color:var(--dark)}
 .modal-actions{display:flex;flex-direction:column;gap:8px}
 .modal-btn-yes{
   background:linear-gradient(135deg,var(--rose-dark),var(--rose));
   color:white;border:none;border-radius:var(--radius-sm);
   padding:10px;font-size:.85rem;font-weight:600;
-  font-family:var(--font-b);cursor:pointer;
+  font-family:var(--font-body);cursor:pointer;
   transition:opacity .2s;
 }
 .modal-btn-yes:hover{opacity:.9}
 .modal-btn-no{
   background:transparent;border:1.5px solid var(--sand);
-  color:var(--warm);border-radius:var(--radius-sm);
+  color:var(--warm-gray);border-radius:var(--radius-sm);
   padding:10px;font-size:.85rem;font-weight:500;
-  font-family:var(--font-b);cursor:pointer;
+  font-family:var(--font-body);cursor:pointer;
   transition:background .18s;
 }
 .modal-btn-no:hover{background:var(--sand)}
 
 /* EMAIL GATE */
-.email-gate{
-  padding:20px 16px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  flex:1;
-  justify-content:center;
-}
-.email-gate p{
-  font-size:.9rem;
-  color:var(--dark);
-  line-height:1.6;
-  text-align:center;
-}
-.email-input-wrap{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.email-field{
-  border:1.5px solid var(--sand);
-  border-radius:24px;
-  padding:11px 18px;
-  font-size:.875rem;
-  font-family:var(--font-b);
-  color:var(--dark);
-  background:var(--cream);
-  outline:none;
-  transition:border-color .2s;
-  text-align:center;
-}
-.email-field:focus{border-color:var(--rose)}
-.email-field::placeholder{color:var(--warm-gray)}
-.email-submit{
-  background:linear-gradient(135deg,var(--rose-dark),var(--rose));
-  color:white;
-  border:none;
-  border-radius:24px;
-  padding:11px;
-  font-size:.875rem;
-  font-weight:600;
-  font-family:var(--font-b);
-  cursor:pointer;
-  transition:opacity .2s,transform .15s;
-}
-.email-submit:hover{opacity:.9;transform:translateY(-1px)}
-.email-error{
-  font-size:.75rem;
-  color:#dc2626;
-  text-align:center;
-  display:none;
-}
-
-/* EMAIL GATE MEJORADO */
 .email-gate{padding:24px 16px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center;overflow-y:auto}
 .gate-step{display:none;flex-direction:column;gap:12px;animation:slideIn .25s ease}
 .gate-step.active{display:flex}
@@ -259,20 +211,34 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
 .rating-submit:hover{opacity:.9}
 .rating-skip{background:none;border:none;color:var(--warm-gray);font-size:.75rem;cursor:pointer;margin-top:8px;font-family:var(--font-body);text-decoration:underline}
 .rating-thanks{font-size:.9rem;color:var(--dark);padding:8px 0}
-</style>
-</head>
-<body>
 
-<div class="demo-header">
-  <h1>Agente de ventas <em>inteligente</em></h1>
-  <p>Conectado en tiempo real a todo tu catálogo de <strong>De Moi à Toi Regalos</strong>. Conoce cada producto, recomienda con criterio y atiende como tú lo harías.</p>
-</div>
+/* FAB */
+.dmat-fab{
+  position:fixed;bottom:20px;right:20px;z-index:999998;
+  width:60px;height:60px;border-radius:50%;
+  background:linear-gradient(135deg,var(--rose-dark),var(--rose));
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow),0 2px 8px rgba(232,131,122,.25);
+  font-size:1.6rem;color:white;
+  transition:transform .15s;
+  font-family:var(--font-body);
+  overflow:hidden;
+}
+.dmat-fab:hover{transform:scale(1.06)}
+.dmat-fab img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.dmat-fab.dmat-hidden{display:none}
+@media (max-width:480px){
+  .dmat-fab{bottom:16px;right:16px;width:54px;height:54px;font-size:1.4rem}
+}
+`;
 
-<div class="embed-note">
-  💡 <strong>Catálogo completo en tiempo real:</strong> El agente consulta directamente <code>demoiatoi.com</code> para mostrar productos actualizados. Funciona tanto como app independiente como widget embebido en tu Shopify.
-</div>
+// ═══════════════════════════════════════════════════════════════
+//  HTML
+// ═══════════════════════════════════════════════════════════════
+const HTML = `
+<div class="dmat-fab" id="dmatFab" title="Chatea con nosotras">💬</div>
 
-<!-- CHAT WIDGET -->
 <div class="chat-widget" id="chatWidget">
   <div class="chat-header">
     <div class="avatar-wrap" id="agentAvatarWrap">🎁</div>
@@ -280,7 +246,8 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
       <strong id="agentNameDisplay">Elena · De Moi à Toi</strong>
       <span>Aquí para ayudarte a encontrar el regalo perfecto ✨</span>
     </div>
-    <button class="sound-toggle" id="soundToggle" onclick="toggleSound()" title="Silenciar/activar sonido de notificaciones">🔊</button>
+    <button class="sound-toggle" id="soundToggle" title="Silenciar/activar sonido de notificaciones">🔊</button>
+    <button class="dmat-close-btn" id="dmatCloseBtn" title="Cerrar chat">✕</button>
     <div class="header-badge">En línea</div>
   </div>
   <!-- EMAIL GATE -->
@@ -289,9 +256,8 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     <div class="gate-step active" id="gateStep1">
       <div class="gate-logo" id="gateLogo1">🎁</div>
       <div class="gate-title">¡Hola! Para poder ayudarte mejor y hacer seguimiento de tu consulta, necesito tu email 😊</div>
-      <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com"
-        onkeydown="if(event.key==='Enter') goToStep2()">
-      <button class="email-submit" onclick="goToStep2()">Continuar →</button>
+      <input class="email-field" type="email" id="emailInput" placeholder="tu@email.com">
+      <button class="email-submit" id="gateStep1Submit">Continuar →</button>
       <div class="email-error" id="emailError">Por favor introduce un email válido</div>
     </div>
     <!-- PASO 2: Cómo nos conociste -->
@@ -300,14 +266,14 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
       <div class="gate-title">¿Cómo nos conociste?</div>
       <div class="gate-subtitle">Nos ayuda a saber dónde encontrarte 😊</div>
       <div class="source-options">
-        <button class="source-btn" onclick="selectSource(this,'Instagram')">📸 Instagram</button>
-        <button class="source-btn" onclick="selectSource(this,'Google')">🔍 Google</button>
-        <button class="source-btn" onclick="selectSource(this,'Recomendación')">💬 Me lo recomendaron</button>
-        <button class="source-btn" onclick="selectSource(this,'Ya era clienta')">💛 Ya era clienta</button>
-        <button class="source-btn" onclick="selectSource(this,'Pinterest')">📌 Pinterest</button>
-        <button class="source-btn" onclick="selectSource(this,'Otro')">✨ Otro</button>
+        <button class="source-btn" data-source="Instagram">📸 Instagram</button>
+        <button class="source-btn" data-source="Google">🔍 Google</button>
+        <button class="source-btn" data-source="Recomendación">💬 Me lo recomendaron</button>
+        <button class="source-btn" data-source="Ya era clienta">💛 Ya era clienta</button>
+        <button class="source-btn" data-source="Pinterest">📌 Pinterest</button>
+        <button class="source-btn" data-source="Otro">✨ Otro</button>
       </div>
-      <button class="email-submit" id="sourceSubmit" onclick="submitSource()" style="opacity:.5;pointer-events:none">Empezar a chatear →</button>
+      <button class="email-submit" id="sourceSubmit" style="opacity:.5;pointer-events:none">Empezar a chatear →</button>
     </div>
   </div>
 
@@ -318,15 +284,15 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
       <div class="rating-title">Déjanos tu valoración sobre la atención recibida para ayudarnos a mejorar</div>
       <div class="rating-subtitle">¿Cómo ha sido tu experiencia hoy?</div>
       <div class="stars" id="starsRow">
-        <span class="star" onclick="setStar(1)">⭐</span>
-        <span class="star" onclick="setStar(2)">⭐</span>
-        <span class="star" onclick="setStar(3)">⭐</span>
-        <span class="star" onclick="setStar(4)">⭐</span>
-        <span class="star" onclick="setStar(5)">⭐</span>
+        <span class="star" data-star="1">⭐</span>
+        <span class="star" data-star="2">⭐</span>
+        <span class="star" data-star="3">⭐</span>
+        <span class="star" data-star="4">⭐</span>
+        <span class="star" data-star="5">⭐</span>
       </div>
       <textarea class="rating-comment" id="ratingComment" rows="2" placeholder="Comentario opcional..."></textarea>
-      <button class="rating-submit" onclick="submitRating()">Enviar valoración</button>
-      <br><button class="rating-skip" onclick="skipRating()">Omitir</button>
+      <button class="rating-submit" id="ratingSubmitBtn">Enviar valoración</button>
+      <br><button class="rating-skip" id="ratingSkipBtn">Omitir</button>
     </div>
   </div>
 
@@ -335,14 +301,13 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     <div class="image-preview" id="imagePreview" style="display:none">
       <img id="previewImg" src="" alt="Imagen adjunta">
       <span>Imagen adjunta</span>
-      <button onclick="clearPendingImage()" title="Quitar imagen">✕</button>
+      <button id="clearImageBtn" title="Quitar imagen">✕</button>
     </div>
     <div class="input-row">
-      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="handleFileSelect(event)">
-      <button class="attach-btn" id="attachBtn" onclick="document.getElementById('fileInput').click()" title="Adjuntar imagen o captura">📎</button>
-      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1"
-        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Enviar">
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">
+      <button class="attach-btn" id="attachBtn" title="Adjuntar imagen o captura">📎</button>
+      <textarea class="chat-input" id="chatInput" placeholder="Escríbeme lo que necesitas..." rows="1"></textarea>
+      <button class="send-btn" id="sendBtn" title="Enviar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
@@ -351,7 +316,7 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
     <p class="powered-by">Asistido por IA · De Moi à Toi Regalos</p>
   </div>
   <div class="andrea-bar">
-    <button class="andrea-btn" onclick="showAndreaModal()">
+    <button class="andrea-btn" id="andreaBarBtn">
       <span class="andrea-dot"></span>
       Hablar con Andrea
     </button>
@@ -366,30 +331,37 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);min-
       Te recomendamos usar <strong>este chat</strong> o escribir a <strong>contacto@demoiatoi.es</strong> para una respuesta más rápida.<br><br>
       ¿Sigues queriendo contactar con ella?</p>
       <div class="modal-actions">
-        <button class="modal-btn-yes" onclick="waitForAndrea()">⏳ Esperar a que Andrea se una</button>
-        <button class="modal-btn-yes" style="background:linear-gradient(135deg,#1a5276,#2e86c1);margin-top:2px" onclick="contactAndreaEmail()">✉️ Escribir por Email</button>
-        <button class="modal-btn-no" onclick="closeAndreaModal()">No, usaré el chat</button>
+        <button class="modal-btn-yes" id="waitForAndreaBtn">⏳ Esperar a que Andrea se una</button>
+        <button class="modal-btn-yes" style="background:linear-gradient(135deg,#1a5276,#2e86c1);margin-top:2px" id="contactAndreaEmailBtn">✉️ Escribir por Email</button>
+        <button class="modal-btn-no" id="closeAndreaModalBtn">No, usaré el chat</button>
       </div>
     </div>
   </div>
 
 </div>
+`;
 
-<!-- EMBED CODE -->
-<div class="embed-section">
-  <h3>🔗 Instalar en <span>Shopify</span></h3>
-  <div class="code-block" id="embedCode"><!-- Pega en Online Store → Edit code → theme.liquid, antes de </body> -->
-<script>
-  window.DMAT_AGENT = {
-    agentName: "Elena",
-    storeUrl: "https://demoiatoi.com"
-  };
-</script>
-<script src="https://demoiatoi-chat-agent.vercel.app/dmat-agent.js" defer></script></div>
-  <button class="copy-btn" id="copyBtn" onclick="copyEmbed()">📋 Copiar código</button>
-</div>
+// ═══════════════════════════════════════════════════════════════
+//  SHADOW DOM SETUP
+// ═══════════════════════════════════════════════════════════════
+const host = document.createElement('div');
+host.id = 'dmat-agent-host';
+document.body.appendChild(host);
+const root = host.attachShadow({ mode: 'open' });
 
-<script>
+const styleEl = document.createElement('style');
+styleEl.textContent = STYLES;
+root.appendChild(styleEl);
+
+const wrapper = document.createElement('div');
+wrapper.innerHTML = HTML;
+root.appendChild(wrapper);
+
+// DOM query helpers (shadow-scoped)
+const $ = (id) => root.getElementById(id);
+const $q = (sel) => root.querySelector(sel);
+const $qa = (sel) => root.querySelectorAll(sel);
+
 // ═══════════════════════════════════════════════════════════════
 //  SUPABASE — para recibir respuestas de Andrea en tiempo real
 // ═══════════════════════════════════════════════════════════════
@@ -516,7 +488,7 @@ function startAndreaWaitFlow() {
 }
 
 function renderAndreaWaitOptions() {
-  const area = document.getElementById('messagesArea')
+  const area = $('messagesArea')
   renderBubble('agent', 'Siento la espera 🙏 Andrea sigue ocupada en el taller. ¿Prefieres que te escriba por email en cuanto pueda, o sigues esperando aquí?')
 
   const wrap = document.createElement('div')
@@ -582,7 +554,7 @@ async function checkInactivity() {
 }
 
 function renderClosingOptions() {
-  const area = document.getElementById('messagesArea')
+  const area = $('messagesArea')
   const wrap = document.createElement('div')
   wrap.className = 'quick-replies'
 
@@ -613,7 +585,7 @@ function renderClosingOptions() {
 }
 
 function renderContactPreference() {
-  const area = document.getElementById('messagesArea')
+  const area = $('messagesArea')
   const wrap = document.createElement('div')
   wrap.className = 'quick-replies'
 
@@ -641,7 +613,7 @@ function renderContactPreference() {
 }
 
 function renderAndreaBubble(text) {
-  const area = document.getElementById('messagesArea')
+  const area = $('messagesArea')
   const row = document.createElement('div')
   row.className = 'bubble-row agent'
   row.innerHTML = `
@@ -660,7 +632,7 @@ function renderAndreaBubble(text) {
 let _soundMuted = localStorage.getItem('dmat_sound_muted') === '1'
 
 function updateSoundIcon() {
-  const btn = document.getElementById('soundToggle')
+  const btn = $('soundToggle')
   if (btn) {
     btn.textContent = _soundMuted ? '🔇' : '🔊'
     btn.title = _soundMuted ? 'Sonido silenciado: pulsa para activarlo' : 'Silenciar sonido de notificaciones'
@@ -690,7 +662,7 @@ function playNotificationSound() {
 //  CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════
 let agentConfig = {
-  name: "Elena",
+  name: AGENT_NAME_CFG,
   avatar: null,
   shipping: "Tiempo de producción: de 6 a 15 días hábiles (estándar). Tazas y láminas se preparan y envían en 24h. En campañas concretas centralizamos la producción de pedidos urgentes — conviene preguntar siempre para confirmar disponibilidad. Una vez el pedido sale del taller, el envío es siempre urgente (24-48h) con seguimiento de transporte. Si el pedido es muy urgente, se puede contratar un servicio de 10h contactando para abonar la diferencia. Coste de envío: gratis a partir de 90€; para pedidos de menor importe ronda entre 5€ y 6,50€ según destino y volumen. Disponemos de un cupo de pedidos urgentes; una vez cubierto, no se podrán aceptar más urgentes hasta la fecha que indiquemos. Si el cliente necesita algo urgente, dile que vas a consultarlo con Andrea antes de confirmar. Hacemos envíos a toda España. También podemos enviar al extranjero (incluido Portugal) bajo petición.",
   returns: "Aceptamos devoluciones en 14 días si el producto llega defectuoso. Los productos personalizados no admiten devolución salvo error nuestro. Contacta en contacto@demoiatoi.es",
@@ -802,7 +774,7 @@ const CATALOG = [
 function searchProducts(query, maxResults = 4) {
   const q = query.toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');
   const words = q.split(/\s+/).filter(w => w.length > 2);
-  
+
   const scored = CATALOG.map(p => {
     let score = 0;
     const haystack = (p.title + ' ' + p.tags.join(' ') + ' ' + p.cat).toLowerCase()
@@ -825,7 +797,7 @@ function buildSystemPrompt() {
     if (!byCategory[p.cat]) byCategory[p.cat] = [];
     byCategory[p.cat].push(`  • "${p.title}" | Desde ${p.price}€ | ID:${p.id}`);
   });
-  
+
   const catalogText = Object.entries(byCategory).map(([cat, prods]) =>
     `**${cat}:**\n${prods.join('\n')}`
   ).join('\n\n');
@@ -908,7 +880,7 @@ Esto avisa automáticamente a Andrea (no necesitas hacer nada más) y el cliente
 ## FECHAS DE ENTREGA — MUY IMPORTANTE
 Nunca confirmes una fecha de entrega por tu cuenta. Siempre que un cliente pregunte si algo llega a tiempo, sigue estas reglas:
 
-- **Más de 2 semanas de margen:** Puedes decir que normalmente no hay problema para pedidos estándar, pero que Andrea lo confirmará. Usa la fórmula de "CÓMO DERIVAR A ANDREA" para avisarla.
+- **Más de 2 semanas de margen:** Puedes decir que normalmente no hay problema para pedidos estándar, pero que Andrea lo confirmará. Usa la fórmula de "CÓMO DERIVAR A ANDREA".
 - **1 semana de margen:** Territorio delicado. Di que necesitas consultarlo con Andrea antes de confirmar, usando la fórmula de "CÓMO DERIVAR A ANDREA".
 - **Menos de 2 días:** Explica siempre que el transporte tarda 24h pudiendo demorarse hasta 48h, que en caso de incidencia con el transporte la empresa no puede hacerse responsable ya que no depende de ellos, y usa la fórmula de "CÓMO DERIVAR A ANDREA" para que lo confirme cuanto antes.
 - **Cualquier duda sobre plazos:** No confirmes nunca. Di que depende del stock y la producción en ese momento, y usa la fórmula de "CÓMO DERIVAR A ANDREA".
@@ -977,7 +949,7 @@ function getTime() {
 }
 
 function renderBubble(role, content, imageDataUrl) {
-  const area = document.getElementById("messagesArea");
+  const area = $("messagesArea");
   const row = document.createElement("div");
   row.className = `bubble-row ${role}`;
 
@@ -1066,7 +1038,7 @@ function renderBubble(role, content, imageDataUrl) {
 }
 
 function renderQuickReplies(replies) {
-  const area = document.getElementById("messagesArea");
+  const area = $("messagesArea");
   const wrap = document.createElement("div");
   wrap.className = "quick-replies";
   wrap.id = "quickReplies";
@@ -1086,7 +1058,7 @@ function renderQuickReplies(replies) {
 }
 
 function showTyping() {
-  const area = document.getElementById("messagesArea");
+  const area = $("messagesArea");
   const row = document.createElement("div");
   row.className = "bubble-row agent";
   row.id = "typingRow";
@@ -1094,7 +1066,7 @@ function showTyping() {
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
 }
-function removeTyping() { document.getElementById("typingRow")?.remove(); }
+function removeTyping() { $("typingRow")?.remove(); }
 
 // ═══════════════════════════════════════════════════════════════
 //  API
@@ -1148,12 +1120,12 @@ async function sendUserMessage(text) {
   _lastUserMsgTime = Date.now();
   _closingStage = 0;
   isTyping = true;
-  document.getElementById("quickReplies")?.remove();
+  $("quickReplies")?.remove();
   renderBubble("user", text, img ? img.dataUrl : null);
-  const inp = document.getElementById("chatInput");
+  const inp = $("chatInput");
   inp.value = ""; inp.style.height = "";
-  document.getElementById("sendBtn").disabled = true;
-  document.getElementById("attachBtn").disabled = true;
+  $("sendBtn").disabled = true;
+  $("attachBtn").disabled = true;
   clearPendingImage();
   showTyping();
   try {
@@ -1175,13 +1147,13 @@ async function sendUserMessage(text) {
     removeTyping();
     renderBubble("agent","¡Ups! Problema de conexión. Inténtalo de nuevo o escríbenos a contacto@demoiatoi.es 💛");
   }
-  document.getElementById("sendBtn").disabled = false;
-  document.getElementById("attachBtn").disabled = false;
+  $("sendBtn").disabled = false;
+  $("attachBtn").disabled = false;
   isTyping = false;
 }
 
 function sendMessage() {
-  sendUserMessage(document.getElementById("chatInput").value.trim());
+  sendUserMessage($("chatInput").value.trim());
 }
 
 // ── ADJUNTAR IMAGEN / CAPTURA ──
@@ -1201,16 +1173,16 @@ function handleFileSelect(e) {
   reader.onload = () => {
     const dataUrl = reader.result;
     window._pendingImage = { dataUrl, base64: dataUrl.split(",")[1], mediaType: file.type };
-    document.getElementById("previewImg").src = dataUrl;
-    document.getElementById("imagePreview").style.display = "flex";
+    $("previewImg").src = dataUrl;
+    $("imagePreview").style.display = "flex";
   };
   reader.readAsDataURL(file);
 }
 
 function clearPendingImage() {
   window._pendingImage = null;
-  document.getElementById("previewImg").src = "";
-  document.getElementById("imagePreview").style.display = "none";
+  $("previewImg").src = "";
+  $("imagePreview").style.display = "none";
 }
 function handleKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,96)+"px"; }
@@ -1228,7 +1200,7 @@ async function loadAgentSettings() {
     if (s.returns_policy) agentConfig.returns = s.returns_policy;
     agentConfig.extra = s.extra_instructions || "";
     if (s.recommended_products) recommendedProducts = Object.assign(recommendedProducts, s.recommended_products);
-    document.getElementById("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
+    $("agentNameDisplay").textContent = `${agentConfig.name} · De Moi à Toi`;
     applyAgentAvatar();
   } catch (e) {}
 }
@@ -1240,17 +1212,12 @@ function getAgentAvatarHtml() {
 
 function applyAgentAvatar() {
   const html = getAgentAvatarHtml();
-  document.getElementById("agentAvatarWrap").innerHTML = html;
-  document.getElementById("gateLogo1").innerHTML = html;
-}
-
-function copyEmbed() {
-  navigator.clipboard.writeText(document.getElementById("embedCode").textContent).then(() => {
-    const btn = document.getElementById("copyBtn");
-    btn.textContent = "✅ ¡Copiado!";
-    btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = "📋 Copiar código"; btn.classList.remove("copied"); }, 2500);
-  });
+  $("agentAvatarWrap").innerHTML = html;
+  $("gateLogo1").innerHTML = html;
+  const fab = $("dmatFab");
+  if (fab && !$("chatWidget").classList.contains('dmat-open')) {
+    fab.innerHTML = html === "🎁" ? "💬" : html;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1258,24 +1225,25 @@ function copyEmbed() {
 // ═══════════════════════════════════════════════════════════════
 let _selectedSource = null;
 let _selectedStar = 0;
+let _chatInitialized = false;
 
 function goToStep2() {
-  const email = document.getElementById('emailInput').value.trim();
+  const email = $('emailInput').value.trim();
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!re.test(email)) {
-    document.getElementById('emailError').style.display = 'block';
+    $('emailError').style.display = 'block';
     return;
   }
   window._customerEmail = email;
-  document.getElementById('gateStep1').classList.remove('active');
-  document.getElementById('gateStep2').classList.add('active');
+  $('gateStep1').classList.remove('active');
+  $('gateStep2').classList.add('active');
 }
 
 function selectSource(btn, source) {
   _selectedSource = source;
-  document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('selected'));
+  $qa('.source-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
-  const submitBtn = document.getElementById('sourceSubmit');
+  const submitBtn = $('sourceSubmit');
   submitBtn.style.opacity = '1';
   submitBtn.style.pointerEvents = 'auto';
 }
@@ -1305,14 +1273,14 @@ function submitSource() {
 
 function setStar(n) {
   _selectedStar = n;
-  document.querySelectorAll('.star').forEach((s,i) => {
+  $qa('.star').forEach((s,i) => {
     s.classList.toggle('active', i < n);
   });
 }
 
 function submitRating() {
   if (_selectedStar === 0) return;
-  const comment = document.getElementById('ratingComment').value.trim();
+  const comment = $('ratingComment').value.trim();
   if (window._convId) {
     fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?id=eq.${window._convId}`, {
       method: 'PATCH',
@@ -1325,22 +1293,22 @@ function submitRating() {
       body: JSON.stringify({ rating: _selectedStar, rating_comment: comment, status: 'resolved' })
     });
   }
-  document.querySelector('.rating-box').innerHTML = '<div class="rating-icon">💛</div><div class="rating-thanks">¡Gracias por tu valoración! Nos ayuda mucho a mejorar.</div>';
-  setTimeout(() => { document.getElementById('ratingOverlay').classList.remove('show'); }, 2000);
+  $q('.rating-box').innerHTML = '<div class="rating-icon">💛</div><div class="rating-thanks">¡Gracias por tu valoración! Nos ayuda mucho a mejorar.</div>';
+  setTimeout(() => { $('ratingOverlay').classList.remove('show'); }, 2000);
 }
 
 function skipRating() {
-  document.getElementById('ratingOverlay').classList.remove('show');
+  $('ratingOverlay').classList.remove('show');
 }
 
 function showRating() {
-  document.getElementById('ratingOverlay').classList.add('show');
+  $('ratingOverlay').classList.add('show');
 }
 
 async function showChat() {
-  document.getElementById('emailGate').style.display = 'none';
-  document.getElementById('messagesArea').style.display = 'flex';
-  document.getElementById('inputArea').style.display = 'block';
+  $('emailGate').style.display = 'none';
+  $('messagesArea').style.display = 'flex';
+  $('inputArea').style.display = 'block';
   startPolling();
 
   // Si hay conversación previa, cargar los últimos mensajes
@@ -1359,7 +1327,7 @@ async function showChat() {
 
         // Mostrar los últimos 6 mensajes visualmente
         const lastMsgs = msgs.slice(-6)
-        const area = document.getElementById('messagesArea')
+        const area = $('messagesArea')
         if (lastMsgs.length > 0) {
           const divider = document.createElement('div')
           divider.style.cssText = 'text-align:center;font-size:.72rem;color:var(--warm-gray);padding:8px 0;opacity:.7'
@@ -1391,9 +1359,9 @@ function initChat() {
     showChat();
     return;
   }
-  document.getElementById('emailGate').style.display = 'flex';
-  document.getElementById('messagesArea').style.display = 'none';
-  document.getElementById('inputArea').style.display = 'none';
+  $('emailGate').style.display = 'flex';
+  $('messagesArea').style.display = 'none';
+  $('inputArea').style.display = 'none';
 }
 
 function startChat() {
@@ -1406,13 +1374,12 @@ function startChat() {
   ]);
 }
 
-
 function showAndreaModal() {
-  const modal = document.getElementById('andreaModal');
+  const modal = $('andreaModal');
   modal.style.display = 'flex';
 }
 function closeAndreaModal() {
-  document.getElementById('andreaModal').style.display = 'none';
+  $('andreaModal').style.display = 'none';
 }
 // Avisa al panel de Andrea: marca la conversación como "necesita atención"
 function notifyAndreaContact(channel) {
@@ -1446,16 +1413,69 @@ function contactAndreaEmail() {
   window.open('mailto:contacto@demoiatoi.es?subject=Quiero%20hablar%20con%20Andrea&body=Hola%20Andrea%2C%20me%20pongo%20en%20contacto%20contigo%20desde%20el%20chat%20de%20la%20tienda.', '_blank');
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  updateSoundIcon();
-  loadAgentSettings();
-  // Recuperar email y conversación anterior si existe
-  try {
+// ═══════════════════════════════════════════════════════════════
+//  FAB + ABRIR/CERRAR WIDGET
+// ═══════════════════════════════════════════════════════════════
+function openWidget() {
+  $('chatWidget').classList.add('dmat-open');
+  $('dmatFab').classList.add('dmat-hidden');
+  if (!_chatInitialized) {
+    _chatInitialized = true;
+    initChat();
+  }
+}
+
+function closeWidget() {
+  $('chatWidget').classList.remove('dmat-open');
+  $('dmatFab').classList.remove('dmat-hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════
+$('dmatFab').addEventListener('click', openWidget);
+$('dmatCloseBtn').addEventListener('click', closeWidget);
+$('soundToggle').addEventListener('click', toggleSound);
+
+$('emailInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') goToStep2(); });
+$('gateStep1Submit').addEventListener('click', goToStep2);
+
+$qa('.source-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectSource(btn, btn.dataset.source));
+});
+$('sourceSubmit').addEventListener('click', submitSource);
+
+$qa('.star').forEach(star => {
+  star.addEventListener('click', () => setStar(parseInt(star.dataset.star, 10)));
+});
+$('ratingSubmitBtn').addEventListener('click', submitRating);
+$('ratingSkipBtn').addEventListener('click', skipRating);
+
+$('clearImageBtn').addEventListener('click', clearPendingImage);
+$('fileInput').addEventListener('change', handleFileSelect);
+$('attachBtn').addEventListener('click', () => $('fileInput').click());
+$('chatInput').addEventListener('keydown', handleKey);
+$('chatInput').addEventListener('input', (e) => autoResize(e.target));
+$('sendBtn').addEventListener('click', sendMessage);
+
+$('andreaBarBtn').addEventListener('click', showAndreaModal);
+$('waitForAndreaBtn').addEventListener('click', waitForAndrea);
+$('contactAndreaEmailBtn').addEventListener('click', contactAndreaEmail);
+$('closeAndreaModalBtn').addEventListener('click', closeAndreaModal);
+
+// ═══════════════════════════════════════════════════════════════
+//  ARRANQUE
+// ═══════════════════════════════════════════════════════════════
+updateSoundIcon();
+loadAgentSettings();
+
+// Recuperar email y conversación anterior si existe
+try {
   window._customerEmail = sessionStorage.getItem('dmat_email') ||
     (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_email=')) || '').split('=')[1]?.trim() || null;
   window._convId = sessionStorage.getItem('dmat_conv_id') ||
     (document.cookie.split(';').find(c=>c.trim().startsWith('dmat_conv=')) || '').split('=')[1]?.trim() || null;
-  
+
   // Si tiene email pero no convId, buscarlo en Supabase
   if (window._customerEmail && !window._convId) {
     fetch(`${SUPABASE_URL}/rest/v1/chat_conversations?customer_email=eq.${encodeURIComponent(window._customerEmail)}&status=neq.resolved&order=updated_at.desc&limit=1`, {
@@ -1469,7 +1489,5 @@ window.addEventListener("DOMContentLoaded", () => {
     }).catch(()=>{});
   }
 } catch(e) {}
-});
-</script>
-</body>
-</html>
+
+})();
