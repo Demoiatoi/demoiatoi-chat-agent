@@ -321,7 +321,7 @@ module.exports = async function handler(req, res) {
     const storeSettings = await fetchStoreSettings()
     const urgentNoticeBlock = buildUrgentNoticeBlock(storeSettings)
     const scheduleBlock = buildScheduleBlock(storeSettings.schedule)
-    const baseSystem = ((system && system.trim()) ? system : DEFAULT_SYSTEM) + urgentNoticeBlock + scheduleBlock
+    const baseSystem = ((system && system.trim()) ? system : DEFAULT_SYSTEM) + urgentNoticeBlock
 
     let convId = conversation_id
 
@@ -420,7 +420,10 @@ module.exports = async function handler(req, res) {
 
       const suggestionSystem = `${baseSystem}${knowledgeBlock}
 
-INSTRUCCIÓN PRIVADA DE ANDREA (no mencionar que viene de Andrea, responde como si lo supieras tú):
+INSTRUCCIÓN PRIVADA DE ANDREA — responde ahora mismo al cliente incorporando esta información.
+Indícale de forma natural que Andrea lo ha confirmado (por ejemplo "Andrea me confirma que...",
+"Acabo de hablar con Andrea y...", "Andrea me dice que..."). NO digas frases como "espera, acabo
+de recordar algo importante" ni similares que suenen a que lo sabías tú desde el principio:
 ${suggestion_text}`
 
       // El modelo no admite que "messages" termine en "assistant" (sin prefill).
@@ -452,6 +455,17 @@ ${suggestion_text}`
         role: 'assistant',
         content: assistantText,
         is_from_andrea: false
+      })
+      // Guardamos la sugerencia como conocimiento privado de esta conversación:
+      // así, en los siguientes turnos dejamos de aplicar el bloque de "fuera de
+      // horario" (Andrea ya está interviniendo aquí) y Elena puede usar el flujo
+      // normal de "consulto con Andrea y te confirmo" en vez de derivar por email.
+      await supabase.from('chat_messages').insert({
+        conversation_id: convId,
+        role: 'assistant',
+        content: `[CONOCIMIENTO APRENDIDO]: ${suggestion_text}`,
+        is_from_andrea: false,
+        is_suggestion_private: true
       })
       await supabase.from('chat_conversations').update({
         needs_attention: false,
@@ -489,6 +503,11 @@ ${suggestion_text}`
       ? `\n\nCONOCIMIENTO PRIVADO APRENDIDO (úsalo naturalmente, sin mencionar la fuente):\n${knowledgeItems.join('\n')}`
       : ''
 
+    // Si Andrea ya ha intervenido en esta conversación (hay conocimiento aprendido),
+    // dejamos de aplicar el bloque de "fuera de horario": Elena ya no debe derivar
+    // por email, sino usar el flujo normal de "consulto con Andrea y te confirmo".
+    const effectiveScheduleBlock = knowledgeItems.length > 0 ? '' : scheduleBlock
+
     // ── ESTADO REAL DE PEDIDOS (Shopify) ──
     let orderStatusBlock = ''
     const askedForOrderInfo = lastAssistantAskedForOrderInfo(messages)
@@ -514,7 +533,7 @@ ${suggestion_text}`
       }
     }
 
-    const finalSystem = baseSystem + knowledgeBlock + orderStatusBlock
+    const finalSystem = baseSystem + knowledgeBlock + effectiveScheduleBlock + orderStatusBlock
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
