@@ -613,7 +613,8 @@ ${suggestion_text}`
 📦 **Pedido:** ${orderNumber ? '#' + orderNumber : 'No indicado'}
 📍 **Dirección de envío:** ${incidentData.direccion || 'No indicada'}
 📅 **Fecha máxima de entrega:** ${fechaEntregaEs}
-🔴 **Estado:** Pendiente de gestión
+
+✅ **Estado:** Vamos a proceder a gestionarla y te comunicaremos cualquier novedad por email o WhatsApp.
 
 Guarda este número de ticket (#${incidentRow?.id}) por si necesitas consultarlo 💛`
 
