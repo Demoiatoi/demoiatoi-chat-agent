@@ -344,6 +344,7 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 
 <!-- VIEW: INCIDENCIAS DE PEDIDO -->
 <div class="view-page" id="viewIncidencias" style="display:none">
+  <input class="search-box" type="text" id="incidentSearchBox" placeholder="🔍 Buscar por nº de ticket, nº de pedido o cliente..." oninput="renderIncidentsList()">
   <div id="incidentsList"></div>
 </div>
 
@@ -703,11 +704,20 @@ async function markTaskCompleted(id) {
 // ── INCIDENCIAS DE PEDIDO: render y edición ──
 function renderIncidentsList() {
   const el = document.getElementById('incidentsList')
-  if (!incidents.length) {
+  const search = (document.getElementById('incidentSearchBox')?.value || '').toLowerCase().trim().replace(/^#/, '')
+  let list = incidents
+  if (search) {
+    list = list.filter(i =>
+      String(i.id).includes(search) ||
+      (i.order_number || '').toLowerCase().includes(search) ||
+      (i.customer_email || '').toLowerCase().includes(search)
+    )
+  }
+  if (!list.length) {
     el.innerHTML = '<div class="empty-list"><div>🚨</div>No hay incidencias</div>'
     return
   }
-  el.innerHTML = incidents.map(incidentCardHtml).join('')
+  el.innerHTML = list.map(incidentCardHtml).join('')
 }
 
 function incidentCardHtml(inc) {
