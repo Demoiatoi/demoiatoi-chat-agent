@@ -352,6 +352,9 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
     <button class="ftab" onclick="setIncidentFilter('solucionada',this)">🟢 Solucionada</button>
   </div>
   <input class="search-box" type="text" id="incidentSearchBox" placeholder="🔍 Buscar por nº de ticket, nº de pedido o cliente..." oninput="renderIncidentsList()">
+  <div id="incidentBulkBar" style="display:none;margin-bottom:8px">
+    <button class="action-btn btn-delete" onclick="confirmDeleteIncidents()">🗑️ Borrar seleccionadas (<span id="incidentSelCount">0</span>)</button>
+  </div>
   <div id="incidentsList"></div>
 </div>
 
@@ -496,6 +499,7 @@ let incidents = []
 let knownIncidentIds = null
 let incidentAlarmTimer = null
 let currentIncidentFilter = 'all'
+let selectedIncidentIds = new Set()
 
 // ── INIT ──
 async function init() {
@@ -742,7 +746,7 @@ function incidentCardHtml(inc) {
   const order = inc.order_number ? ` · Pedido #${inc.order_number}` : ''
   return `<div class="task-card incident-card status-${inc.status}">
     <div class="task-card-header">
-      <div class="task-card-email">🚨 Incidencia #${inc.id} — ${inc.customer_email || 'Cliente anónimo'}${order}</div>
+      <div class="task-card-email"><input type="checkbox" class="incident-checkbox" onchange="toggleIncidentSelection(${inc.id},this.checked)" ${selectedIncidentIds.has(inc.id) ? 'checked' : ''}> 🚨 Incidencia #${inc.id} — ${inc.customer_email || 'Cliente anónimo'}${order}</div>
       <div class="task-card-time">${time}</div>
     </div>
 
@@ -825,6 +829,39 @@ async function saveIncident(id) {
   updateNavCounts()
   manageIncidentAlarm()
   showToast('💾 Incidencia guardada')
+}
+
+function toggleIncidentSelection(id, checked) {
+  if (checked) selectedIncidentIds.add(id)
+  else selectedIncidentIds.delete(id)
+  updateIncidentBulkBar()
+}
+
+function updateIncidentBulkBar() {
+  document.getElementById('incidentSelCount').textContent = selectedIncidentIds.size
+  document.getElementById('incidentBulkBar').style.display = selectedIncidentIds.size ? 'block' : 'none'
+}
+
+function confirmDeleteIncidents() {
+  if (!selectedIncidentIds.size) return
+  document.getElementById('modalTitle').textContent = '¿Borrar incidencias?'
+  document.getElementById('modalDesc').textContent = `Se borrarán ${selectedIncidentIds.size} incidencia(s). No se puede deshacer.`
+  document.getElementById('modalConfirmBtn').onclick = doDeleteIncidents
+  document.getElementById('modalOverlay').classList.add('show')
+}
+
+async function doDeleteIncidents() {
+  closeModal()
+  const ids = [...selectedIncidentIds]
+  if (!ids.length) return
+  await sb(`order_incidents?id=in.(${ids.join(',')})`, { method: 'DELETE', prefer: 'return=minimal' })
+  incidents = incidents.filter(i => !selectedIncidentIds.has(i.id))
+  selectedIncidentIds.clear()
+  updateIncidentBulkBar()
+  renderIncidentsList()
+  updateNavCounts()
+  manageIncidentAlarm()
+  showToast('🗑️ Incidencias borradas')
 }
 
 // ── BADGES Y ETIQUETAS DE ALERTA ──
