@@ -193,7 +193,8 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 .form-section input:focus,.form-section textarea:focus{border-color:var(--blue-light)}
 
 /* INCIDENCIAS DE PEDIDO */
-.incident-card{border-left:4px solid var(--red)}
+#incidentsList{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+.incident-card{border-left:4px solid var(--red);max-width:none;margin-bottom:0}
 .incident-card.status-en_tramite{border-left-color:var(--orange)}
 .incident-card.status-solucionada{border-left-color:var(--green)}
 .incident-card .form-section{margin-bottom:10px}
@@ -344,6 +345,12 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 
 <!-- VIEW: INCIDENCIAS DE PEDIDO -->
 <div class="view-page" id="viewIncidencias" style="display:none">
+  <div class="filter-tabs" style="margin-bottom:8px">
+    <button class="ftab active" onclick="setIncidentFilter('all',this)">Todas</button>
+    <button class="ftab" onclick="setIncidentFilter('pendiente',this)">🔴 Pendiente</button>
+    <button class="ftab" onclick="setIncidentFilter('en_tramite',this)">🟠 En trámite</button>
+    <button class="ftab" onclick="setIncidentFilter('solucionada',this)">🟢 Solucionada</button>
+  </div>
   <input class="search-box" type="text" id="incidentSearchBox" placeholder="🔍 Buscar por nº de ticket, nº de pedido o cliente..." oninput="renderIncidentsList()">
   <div id="incidentsList"></div>
 </div>
@@ -488,6 +495,7 @@ let currentNotice = { urgent_notice: '', urgent_notice_active: false }
 let incidents = []
 let knownIncidentIds = null
 let incidentAlarmTimer = null
+let currentIncidentFilter = 'all'
 
 // ── INIT ──
 async function init() {
@@ -702,10 +710,18 @@ async function markTaskCompleted(id) {
 }
 
 // ── INCIDENCIAS DE PEDIDO: render y edición ──
+function setIncidentFilter(f, btn) {
+  currentIncidentFilter = f
+  document.querySelectorAll('#viewIncidencias .ftab').forEach(t => t.classList.remove('active'))
+  btn.classList.add('active')
+  renderIncidentsList()
+}
+
 function renderIncidentsList() {
   const el = document.getElementById('incidentsList')
   const search = (document.getElementById('incidentSearchBox')?.value || '').toLowerCase().trim().replace(/^#/, '')
   let list = incidents
+  if (currentIncidentFilter !== 'all') list = list.filter(i => i.status === currentIncidentFilter)
   if (search) {
     list = list.filter(i =>
       String(i.id).includes(search) ||
