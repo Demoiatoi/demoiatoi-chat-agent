@@ -191,6 +191,20 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 .form-section label{display:block;font-size:.78rem;font-weight:600;color:var(--warm);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
 .form-section input[type=text],.form-section textarea{width:100%;border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:9px 12px;font-size:.85rem;font-family:var(--font-b);color:var(--dark);background:var(--white);outline:none;resize:vertical}
 .form-section input:focus,.form-section textarea:focus{border-color:var(--blue-light)}
+
+/* INCIDENCIAS DE PEDIDO */
+.incident-card{border-left:4px solid var(--red)}
+.incident-card.status-en_tramite{border-left-color:var(--orange)}
+.incident-card.status-solucionada{border-left-color:var(--green)}
+.incident-card .form-section{margin-bottom:10px}
+.incident-card .form-section:last-of-type{margin-bottom:0}
+.incident-card select,.incident-card input[type=date]{width:100%;border:1.5px solid var(--sand);border-radius:var(--radius-sm);padding:9px 12px;font-size:.85rem;font-family:var(--font-b);color:var(--dark);background:var(--white);outline:none}
+.incident-card select:focus,.incident-card input[type=date]:focus{border-color:var(--blue-light)}
+.status-select.status-pendiente{color:var(--red);border-color:var(--red);font-weight:600}
+.status-select.status-en_tramite{color:var(--orange);border-color:var(--orange);font-weight:600}
+.status-select.status-solucionada{color:var(--green);border-color:var(--green);font-weight:600}
+.incident-card .save-btn{background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:white;border:none;border-radius:14px;padding:6px 16px;font-size:.78rem;font-weight:600;font-family:var(--font-b);cursor:pointer;transition:opacity .2s}
+.incident-card .save-btn:hover{opacity:.92}
 .agent-photo-preview{width:48px;height:48px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--blue-pale),var(--blue-light));display:flex;align-items:center;justify-content:center;font-size:1.3rem;overflow:hidden}
 .agent-photo-preview img{width:100%;height:100%;object-fit:cover}
 .schedule-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:.85rem}
@@ -254,6 +268,7 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
   <button class="nav-btn active" id="navBtnConversaciones" onclick="setView('conversaciones',this)">💬 Conversaciones</button>
   <button class="nav-btn" id="navBtnPresupuestos" onclick="setView('presupuestos',this)">📋 Presupuestos pendientes<span class="nav-badge" id="navBudgetCount"></span></button>
   <button class="nav-btn" id="navBtnPendientes" onclick="setView('pendientes',this)">📝 Pendientes<span class="nav-badge" id="navPendingCount"></span></button>
+  <button class="nav-btn" id="navBtnIncidencias" onclick="setView('incidencias',this)">🚨 Incidencias<span class="nav-badge" id="navIncidentCount"></span></button>
   <button class="nav-btn" id="navBtnProductos" onclick="setView('productos',this)">🛍️ Productos</button>
   <button class="nav-btn" id="navBtnAgente" onclick="setView('agente',this)">🎨 Agente</button>
 </div>
@@ -325,6 +340,11 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
 <!-- VIEW: PENDIENTES -->
 <div class="view-page" id="viewPendientes" style="display:none">
   <div id="pendientesList"></div>
+</div>
+
+<!-- VIEW: INCIDENCIAS DE PEDIDO -->
+<div class="view-page" id="viewIncidencias" style="display:none">
+  <div id="incidentsList"></div>
 </div>
 
 <!-- VIEW: PRODUCTOS RECOMENDADOS -->
@@ -464,6 +484,9 @@ let currentFilter = 'all'
 let prevAlertCount = 0
 let knownConvIds = null
 let currentNotice = { urgent_notice: '', urgent_notice_active: false }
+let incidents = []
+let knownIncidentIds = null
+let incidentAlarmTimer = null
 
 // ── INIT ──
 async function init() {
@@ -540,9 +563,47 @@ async function loadConversations() {
   prevAlertCount = alerts
 
   renderConvList()
+  await loadIncidents()
   updateNavCounts()
   if (currentView === 'presupuestos') renderPresupuestosList()
   if (currentView === 'pendientes') renderPendientesList()
+}
+
+// ── INCIDENCIAS DE PEDIDO ──
+async function loadIncidents() {
+  const data = await sb('order_incidents?select=*&order=created_at.desc')
+  if (!data) return
+  incidents = data
+
+  const currentIds = new Set(data.map(i => i.id))
+  if (knownIncidentIds === null) {
+    knownIncidentIds = currentIds
+  } else {
+    const newOnes = data.filter(i => !knownIncidentIds.has(i.id))
+    if (newOnes.length) {
+      newOnes.forEach(i => showToast(`🚨 Nueva incidencia #${i.id}: ${i.customer_email || 'cliente anónimo'}`))
+    }
+    knownIncidentIds = currentIds
+  }
+
+  if (currentView === 'incidencias') renderIncidentsList()
+  manageIncidentAlarm()
+}
+
+function manageIncidentAlarm() {
+  const pending = incidents.some(i => i.status === 'pendiente')
+  if (pending && currentView !== 'incidencias') {
+    if (!incidentAlarmTimer) {
+      playIncidentAlarm()
+      incidentAlarmTimer = setInterval(playIncidentAlarm, 20000)
+    }
+  } else {
+    stopIncidentAlarm()
+  }
+}
+
+function stopIncidentAlarm() {
+  if (incidentAlarmTimer) { clearInterval(incidentAlarmTimer); incidentAlarmTimer = null }
 }
 
 // ── FILTRO ──
@@ -561,6 +622,7 @@ function setView(name, btn) {
     conversaciones: 'viewConversaciones',
     presupuestos: 'viewPresupuestos',
     pendientes: 'viewPendientes',
+    incidencias: 'viewIncidencias',
     productos: 'viewProductos',
     agente: 'viewAgente'
   }
@@ -573,15 +635,18 @@ function setView(name, btn) {
 
   if (name === 'presupuestos') renderPresupuestosList()
   if (name === 'pendientes') renderPendientesList()
+  if (name === 'incidencias') { renderIncidentsList(); stopIncidentAlarm() }
   if (name === 'agente') loadAgentSettingsPanel()
   if (name === 'productos') loadProductsPanel()
 }
 
 function updateNavCounts() {
   const budgetCount = conversations.filter(c => c.alert_type === 'budget_request' && !c.task_completed).length
-  const pendingCount = conversations.filter(c => c.needs_attention && c.status !== 'resolved' && !c.task_completed).length
+  const pendingCount = conversations.filter(c => c.needs_attention && c.status !== 'resolved' && !c.task_completed && c.alert_type !== 'order_incident').length
+  const incidentCount = incidents.filter(i => i.status !== 'solucionada').length
   document.getElementById('navBudgetCount').textContent = budgetCount || ''
   document.getElementById('navPendingCount').textContent = pendingCount || ''
+  document.getElementById('navIncidentCount').textContent = incidentCount || ''
 }
 
 // ── PRESUPUESTOS PENDIENTES / PENDIENTES ──
@@ -616,7 +681,7 @@ function renderPresupuestosList() {
 }
 
 function renderPendientesList() {
-  const list = conversations.filter(c => c.needs_attention && c.status !== 'resolved' && !c.task_completed)
+  const list = conversations.filter(c => c.needs_attention && c.status !== 'resolved' && !c.task_completed && c.alert_type !== 'order_incident')
   const el = document.getElementById('pendientesList')
   if (!list.length) {
     el.innerHTML = '<div class="empty-list"><div>✅</div>No hay pendientes</div>'
@@ -635,6 +700,95 @@ async function markTaskCompleted(id) {
   showToast('✅ Marcado como completado')
 }
 
+// ── INCIDENCIAS DE PEDIDO: render y edición ──
+function renderIncidentsList() {
+  const el = document.getElementById('incidentsList')
+  if (!incidents.length) {
+    el.innerHTML = '<div class="empty-list"><div>🚨</div>No hay incidencias</div>'
+    return
+  }
+  el.innerHTML = incidents.map(incidentCardHtml).join('')
+}
+
+function incidentCardHtml(inc) {
+  const time = new Date(inc.created_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  const resolution = inc.resolution_type || ''
+  const order = inc.order_number ? ` · Pedido #${inc.order_number}` : ''
+  return `<div class="task-card incident-card status-${inc.status}">
+    <div class="task-card-header">
+      <div class="task-card-email">🚨 Incidencia #${inc.id} — ${inc.customer_email || 'Cliente anónimo'}${order}</div>
+      <div class="task-card-time">${time}</div>
+    </div>
+
+    <div class="form-section">
+      <label>Motivo de la incidencia</label>
+      <textarea id="incReason_${inc.id}" rows="2">${inc.reason || ''}</textarea>
+    </div>
+
+    <div class="form-section">
+      <label>Fecha máxima de recepción</label>
+      <input type="date" id="incDeadline_${inc.id}" value="${inc.deadline || ''}">
+    </div>
+
+    <div class="form-section">
+      <label>Tipo de resolución</label>
+      <select id="incResType_${inc.id}" onchange="toggleIncidentResolutionFields(${inc.id})">
+        <option value="" ${resolution === '' ? 'selected' : ''}>— Sin definir —</option>
+        <option value="shipping" ${resolution === 'shipping' ? 'selected' : ''}>📦 Contacto con transporte</option>
+        <option value="replacement" ${resolution === 'replacement' ? 'selected' : ''}>🔁 Repuesto / reenvío</option>
+      </select>
+    </div>
+
+    <div class="form-section" id="incTracking_${inc.id}" style="display:${resolution === 'shipping' ? 'block' : 'none'}">
+      <label>Transportista + nº de seguimiento</label>
+      <input type="text" id="incTrackingInput_${inc.id}" value="${inc.tracking_info || ''}" placeholder="Ej: Correos Express, ES123456789">
+    </div>
+
+    <div class="form-section" id="incReplacement_${inc.id}" style="display:${resolution === 'replacement' ? 'block' : 'none'}">
+      <label>Repuesto / artículo enviado</label>
+      <input type="text" id="incReplacementInput_${inc.id}" value="${inc.replacement_info || ''}" placeholder="Ej: Repuesto enviado el 14/06, seguimiento ES987...">
+    </div>
+
+    <div class="form-section">
+      <label>Estado</label>
+      <select id="incStatus_${inc.id}" class="status-select status-${inc.status}" onchange="this.className='status-select status-'+this.value">
+        <option value="pendiente" ${inc.status === 'pendiente' ? 'selected' : ''}>🔴 Pendiente</option>
+        <option value="en_tramite" ${inc.status === 'en_tramite' ? 'selected' : ''}>🟠 En trámite</option>
+        <option value="solucionada" ${inc.status === 'solucionada' ? 'selected' : ''}>🟢 Solucionada</option>
+      </select>
+    </div>
+
+    <div class="task-card-actions">
+      <button class="view-btn" onclick="goToConversation('${inc.conversation_id}')">Ver conversación →</button>
+      <button class="save-btn" onclick="saveIncident(${inc.id})">💾 Guardar</button>
+    </div>
+  </div>`
+}
+
+function toggleIncidentResolutionFields(id) {
+  const type = document.getElementById(`incResType_${id}`).value
+  document.getElementById(`incTracking_${id}`).style.display = type === 'shipping' ? 'block' : 'none'
+  document.getElementById(`incReplacement_${id}`).style.display = type === 'replacement' ? 'block' : 'none'
+}
+
+async function saveIncident(id) {
+  const body = {
+    reason: document.getElementById(`incReason_${id}`).value.trim(),
+    deadline: document.getElementById(`incDeadline_${id}`).value || null,
+    resolution_type: document.getElementById(`incResType_${id}`).value || null,
+    tracking_info: document.getElementById(`incTrackingInput_${id}`).value.trim(),
+    replacement_info: document.getElementById(`incReplacementInput_${id}`).value.trim(),
+    status: document.getElementById(`incStatus_${id}`).value,
+    updated_at: new Date().toISOString()
+  }
+  await sb(`order_incidents?id=eq.${id}`, { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify(body) })
+  const inc = incidents.find(i => i.id === id)
+  if (inc) Object.assign(inc, body)
+  updateNavCounts()
+  manageIncidentAlarm()
+  showToast('💾 Incidencia guardada')
+}
+
 // ── BADGES Y ETIQUETAS DE ALERTA ──
 function getAttentionBadge(alertType) {
   switch (alertType) {
@@ -642,6 +796,7 @@ function getAttentionBadge(alertType) {
     case 'contact_request': return '<span class="badge badge-attention">💬 Quiere hablar</span>'
     case 'budget_request': return '<span class="badge badge-attention">📋 Presupuesto</span>'
     case 'out_of_hours': return '<span class="badge badge-attention">🌙 Fuera de horario</span>'
+    case 'order_incident': return '<span class="badge badge-attention">🚨 Incidencia de pedido</span>'
     default: return '<span class="badge badge-attention">⚠️ Atención</span>'
   }
 }
@@ -655,6 +810,7 @@ function getAttentionLabel(conv) {
         : '💬 El cliente quiere hablar contigo'
     case 'budget_request': return '📋 Solicitud de presupuesto — revisa el resumen en el chat'
     case 'out_of_hours': return '🌙 Cliente derivado por email (fuera de horario) — revisa cuando puedas'
+    case 'order_incident': return '🚨 Incidencia de pedido — gestiónala en la pestaña "Incidencias"'
     default: return '⚠️ Necesita atención'
   }
 }
@@ -975,6 +1131,22 @@ function playAlarm() {
       o.start(ctx.currentTime+s); o.stop(ctx.currentTime+s+d)
     }
     beep(880,0,.15); beep(880,.2,.15); beep(1100,.4,.25)
+  } catch(e) {}
+}
+
+// ── ALARMA DE INCIDENCIAS (más fuerte e insistente) ──
+function playIncidentAlarm() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)()
+    const beep = (f,s,d) => {
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.frequency.value = f; o.type = 'square'
+      g.gain.setValueAtTime(0.5, ctx.currentTime+s)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+s+d)
+      o.start(ctx.currentTime+s); o.stop(ctx.currentTime+s+d)
+    }
+    beep(1000,0,.18); beep(1300,.22,.18); beep(1000,.44,.18); beep(1300,.66,.3)
   } catch(e) {}
 }
 

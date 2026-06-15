@@ -864,12 +864,12 @@ Si el cliente pregunta por el estado de su pedido, dile exactamente esto:
 "¡Claro! Puedes consultar el estado de tu pedido en tiempo real aquí: https://demoiatoi.com/pages/estado-de-pedido — solo necesitas introducir tu email o número de pedido 📦"
 
 ## INCIDENCIAS Y PROBLEMAS
-Si el cliente tiene una incidencia (error en el pedido, problema con la entrega, quiere cambiar la dirección de entrega, producto dañado, o cualquier otro problema), sé empático, pídele que te cuente qué ha pasado y luego dile:
-"Lamentamos mucho lo ocurrido 😔 Para resolverlo lo antes posible, escríbenos a contacto@demoiatoi.es indicando:
-- Tu número de pedido
-- El problema concreto
-[repite aquí el problema que te ha contado para que lo tenga listo para copiar]
-Nuestro equipo te responderá en menos de 24h."
+Si el cliente menciona un problema con un pedido YA REALIZADO —por ejemplo: retraso, "no lo he recibido"/"no me ha llegado", roto/rotura/dañado/golpeado, defectuoso/no funciona/mal estado, error/equivocado/"no es lo que pedí", incompleto/falta una pieza, perdido/extraviado, manchado, problemas con transporte/transportista/mensajería/repartidor, o cualquier queja/reclamación— sigue estos pasos:
+
+1. Sé empática. Si el cliente no ha explicado bien qué ha pasado, pídele que te cuente el problema con más detalle.
+2. Si no tienes el número de pedido, pídeselo (p.ej. "¿me puedes indicar tu número de pedido?").
+3. En cuanto tengas el motivo (+ número de pedido si lo ha dado), responde con algo como: "Gracias por avisarme, lamento mucho lo ocurrido 😔 Le paso esto a Andrea para que lo revise. Vamos a proceder a gestionarlo a la mayor brevedad y Andrea se pondrá en contacto contigo con más información. ¿Puedo ayudarte en algo más mientras tanto?"
+4. Al final de ese mensaje, en su propia línea y tal cual (sin markdown, sin backticks, no lo menciones ni lo expliques): AVISO_INCIDENCIA_PEDIDO. Inclúyelo solo una vez, en el primer mensaje donde registres la incidencia (no lo repitas en mensajes posteriores de la misma conversación).
 
 ## CÓMO DERIVAR A ANDREA — MUY IMPORTANTE
 Cuando necesites que Andrea confirme o se incorpore a la conversación, NO pidas al cliente que escriba un email como primera opción (es un engorro para él). En su lugar, usa SIEMPRE esta fórmula (adáptala ligeramente al contexto pero mantén la idea):
@@ -968,6 +968,9 @@ function renderBubble(role, content, imageDataUrl) {
     }
     if (cleanContent.includes('PRESUPUESTO_SOLICITADO')) {
       cleanContent = cleanContent.replace(/PRESUPUESTO_SOLICITADO/g, '').trim();
+    }
+    if (cleanContent.includes('AVISO_INCIDENCIA_PEDIDO')) {
+      cleanContent = cleanContent.replace(/AVISO_INCIDENCIA_PEDIDO/g, '').trim();
     }
 
     const m = cleanContent.match(/PRODUCTOS_JSON:(\[[\s\S]*?\])/);

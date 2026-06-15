@@ -37,6 +37,12 @@ function detectsBudgetRequest(text) {
   return text.includes('PRESUPUESTO_SOLICITADO')
 }
 
+// Elena ha recogido el motivo de una incidencia de pedido y la ha registrado
+// (ver marcador AVISO_INCIDENCIA_PEDIDO)
+function detectsOrderIncident(text) {
+  return text.includes('AVISO_INCIDENCIA_PEDIDO')
+}
+
 // Persona mínima de respaldo, por si llega un "system" vacío (p.ej. desde el panel)
 const DEFAULT_SYSTEM = `Eres Elena, la asistente de ventas de "De Moi à Toi Regalos" (demoiatoi.com), una tienda española de regalos personalizados para bodas, bautizos, comuniones, cumpleaños y otras celebraciones. Eres cercana, cálida y profesional. Respondes siempre en español, de forma breve y natural (3-5 frases). No inventes productos, precios ni plazos de entrega que no conozcas con certeza.`
 
@@ -450,22 +456,24 @@ ${suggestion_text}`
       const data = await response.json()
       const assistantText = data.content?.[0]?.text || ''
 
-      await supabase.from('chat_messages').insert({
-        conversation_id: convId,
-        role: 'assistant',
-        content: assistantText,
-        is_from_andrea: false
-      })
       // Guardamos la sugerencia como conocimiento privado de esta conversación:
       // así, en los siguientes turnos dejamos de aplicar el bloque de "fuera de
       // horario" (Andrea ya está interviniendo aquí) y Elena puede usar el flujo
       // normal de "consulto con Andrea y te confirmo" en vez de derivar por email.
+      // (Se guarda ANTES que la respuesta visible para que ésta quede como el
+      // último mensaje del asistente y sea la que vea el cliente.)
       await supabase.from('chat_messages').insert({
         conversation_id: convId,
         role: 'assistant',
         content: `[CONOCIMIENTO APRENDIDO]: ${suggestion_text}`,
         is_from_andrea: false,
         is_suggestion_private: true
+      })
+      await supabase.from('chat_messages').insert({
+        conversation_id: convId,
+        role: 'assistant',
+        content: assistantText,
+        is_from_andrea: false
       })
       await supabase.from('chat_conversations').update({
         needs_attention: false,
@@ -550,13 +558,30 @@ ${suggestion_text}`
       })
     })
     const data = await response.json()
-    const assistantText = data.content?.[0]?.text || ''
+    let assistantText = data.content?.[0]?.text || ''
 
-    // ── DETECTAR DUDA, FUERA DE HORARIO, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
+    // ── DETECTAR DUDA, FUERA DE HORARIO, INCIDENCIA, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
     const hasDoubt = detectsDoubt(assistantText)
     const outOfHours = detectsOutOfHours(assistantText)
+    const orderIncident = detectsOrderIncident(assistantText) && !outOfHours
     const budgetRequest = detectsBudgetRequest(assistantText)
     const handoffToAndrea = detectsAndreaHandoff(assistantText) && !outOfHours
+
+    // Si Elena ha registrado una incidencia de pedido, creamos el registro y le
+    // damos al cliente un número de incidencia (mismo "id" que verá Andrea en el panel)
+    if (orderIncident && convId) {
+      const orderNumber = extractOrderNumber(lastUserText, true)
+      const { data: incidentRow } = await supabase.from('order_incidents').insert({
+        conversation_id: convId,
+        customer_email: customer_email || null,
+        order_number: orderNumber,
+        reason: lastUserText,
+        status: 'pendiente'
+      }).select('id').single()
+
+      assistantText = assistantText.replace(/AVISO_INCIDENCIA_PEDIDO/g, '').trim()
+        + `\n\nTu número de incidencia es **#${incidentRow?.id}**. Guárdalo por si necesitas consultarlo 💛`
+    }
 
     let assistantMsgId = null
     if (convId) {
@@ -583,6 +608,15 @@ ${suggestion_text}`
           needs_attention: true,
           alert_type: 'out_of_hours',
           contact_channel: 'email',
+          task_completed: false,
+          updated_at: new Date().toISOString()
+        }).eq('id', convId)
+      } else if (orderIncident) {
+        // Elena ha registrado una incidencia de pedido (retraso, roto, no recibido, etc.)
+        await supabase.from('chat_conversations').update({
+          needs_attention: true,
+          alert_type: 'order_incident',
+          contact_channel: 'chat',
           task_completed: false,
           updated_at: new Date().toISOString()
         }).eq('id', convId)
