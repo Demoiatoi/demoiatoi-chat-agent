@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel Andrea – De Moi à Toi</title>
+<link rel="manifest" href="/manifest-panel.json">
+<meta name="theme-color" content="#1a3d52">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Panel Andrea">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -262,6 +268,8 @@ body{font-family:var(--font-b);background:var(--cream);color:var(--dark);height:
   <div class="status-pill"><div class="status-dot"></div>En vivo</div>
   <button class="notif-bell" id="noticeBtn" onclick="openNoticeModal()" title="Aviso urgente para Elena">📢</button>
   <button class="notif-bell" id="notifBell">🔔<div class="notif-count" id="notifCount">0</div></button>
+  <button class="notif-bell" onclick="refreshPanel()" title="Actualizar">🔄</button>
+  <button class="notif-bell" onclick="logoutPanel()" title="Cerrar sesión">🚪</button>
 </div>
 
 <!-- TOP NAV -->
@@ -459,6 +467,7 @@ async function doLogin() {
     })
     const data = await res.json()
     if (data.ok) {
+      localStorage.setItem('panelAuthOk', '1')
       document.getElementById('loginOverlay').style.display = 'none'
       init()
     } else {
@@ -469,6 +478,15 @@ async function doLogin() {
     errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.'
     errorEl.style.display = 'block'
   }
+}
+
+function logoutPanel() {
+  localStorage.removeItem('panelAuthOk')
+  location.reload()
+}
+
+function refreshPanel() {
+  location.reload()
 }
 
 // ── SUPABASE ──
@@ -1443,7 +1461,15 @@ async function saveRecommendedProducts() {
   showToast('✅ Productos recomendados guardados')
 }
 
-window.addEventListener('DOMContentLoaded', () => {})
+window.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('panelAuthOk') === '1') {
+    document.getElementById('loginOverlay').style.display = 'none'
+    init()
+  }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw-panel.js', { scope: '/panel-andrea.html' }).catch(() => {})
+  }
+})
 </script>
 </body>
 </html>
