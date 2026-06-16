@@ -138,7 +138,9 @@ Andrea no está disponible ahora mismo (horario de atención: ${horario}, hora d
 En su lugar:
 - Intenta resolver tú misma la consulta con la información disponible.
 - Si de verdad necesitas que lo confirme Andrea, dile al cliente que Andrea está fuera de su horario de atención ahora mismo y que puede escribir a contacto@demoiatoi.es — Andrea lo verá en su próximo horario de atención (${horario}).
-- Si has hecho lo anterior, incluye al final de tu mensaje, en su propia línea y tal cual (sin markdown, sin backticks, sin mencionarlo): AVISO_FUERA_DE_HORARIO`
+- Si has hecho lo anterior, incluye al final de tu mensaje, en su propia línea y tal cual (sin markdown, sin backticks, sin mencionarlo): AVISO_FUERA_DE_HORARIO
+
+⚠️ EXCEPCIÓN OBLIGATORIA — INCIDENCIAS DE PEDIDO: si el cliente reporta un problema con un pedido ya realizado (no recibido, roto, retrasado, incompleto, etc.), esta instrucción de fuera de horario NO se aplica. Sigue SIEMPRE el flujo completo de "INCIDENCIAS Y PROBLEMAS": recoge todos los datos (pasos 1-3), incluye el mensaje del paso 4 y al final del mensaje el bloque DATOS_INCIDENCIA...FIN_DATOS_INCIDENCIA y el marcador AVISO_INCIDENCIA_PEDIDO, exactamente igual que si Andrea estuviese disponible. Las incidencias se registran siempre, independientemente del horario.`
 }
 
 // Elena ha incluido el marcador de "fuera de horario" en su respuesta
@@ -583,9 +585,9 @@ ${suggestion_text}`
     // ── DETECTAR DUDA, FUERA DE HORARIO, INCIDENCIA, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
     const hasDoubt = detectsDoubt(assistantText)
     const outOfHours = detectsOutOfHours(assistantText)
-    const orderIncident = detectsOrderIncident(assistantText) && !outOfHours
+    const orderIncident = detectsOrderIncident(assistantText)
     const budgetRequest = detectsBudgetRequest(assistantText)
-    const handoffToAndrea = detectsAndreaHandoff(assistantText) && !outOfHours
+    const handoffToAndrea = detectsAndreaHandoff(assistantText) && !outOfHours && !orderIncident
 
     // Si Elena ha registrado una incidencia de pedido, creamos el registro y le
     // damos al cliente un número de incidencia (mismo "id" que verá Andrea en el panel)
