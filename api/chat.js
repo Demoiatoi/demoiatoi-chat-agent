@@ -290,12 +290,19 @@ async function fetchRecentOrders(email, orderNumber) {
 }
 
 // Construye el bloque de contexto con el estado real de los pedidos del cliente
-function buildOrderStatusBlock(orders, askedDirectly) {
+function buildOrderStatusBlock(orders, askedDirectly, requiresVerification) {
   if (!orders || !orders.length) {
     if (!askedDirectly) return ''
     // El cliente pregunta por su pedido pero no hemos podido localizarlo automáticamente
     return `\n\nEl cliente pregunta por el estado de un pedido, pero no tienes datos automáticos de él (su email no coincide con ningún pedido o no ha dado uno).
 NO le des todavía el enlace genérico de "estado de pedido". En su lugar, pregúntale si quiere que lo revises tú misma. Si dice que sí, pídele el número de pedido (ej: #5046) y, si no lo tiene a mano, su nombre completo y apellidos o el email con el que hizo el pedido. En cuanto te dé el número de pedido o el email, el sistema lo buscará automáticamente y te dará la información real para responder.`
+  }
+
+  if (requiresVerification) {
+    // Pedidos encontrados por el email de sesión, pero el cliente aún no ha confirmado su identidad.
+    // No revelar número de pedido ni detalles hasta verificar — pedir confirmación primero.
+    return `\n\nHay pedidos registrados que podrían corresponder a este cliente, pero para proteger su privacidad NO debes revelar números de pedido ni información concreta todavía.
+Pídele que te confirme su número de pedido (ej: #4990) o el email con el que realizó el pedido. En cuanto lo proporcione, el sistema verificará y te dará toda la información real para responder.`
   }
 
   const lines = orders.map(o => {
@@ -554,10 +561,12 @@ ${suggestion_text}`
         console.error('fetchRecentOrders failed', e)
       }
     } else if (wantsOrderStatus || askedForOrderInfo) {
-      // O bien pregunta por su pedido, o bien Elena ya le pidió los datos y aún no los ha dado
+      // Pregunta por su pedido pero no ha dado nº ni email en el mensaje.
+      // Buscamos por email de sesión solo para saber si hay pedidos, pero NO los revelamos
+      // hasta que el cliente confirme su nº de pedido o email (requiresVerification=true).
       try {
         const orders = customer_email ? await fetchRecentOrders(customer_email) : []
-        orderStatusBlock = buildOrderStatusBlock(orders, true)
+        orderStatusBlock = buildOrderStatusBlock(orders, true, true)
       } catch (e) {
         console.error('fetchRecentOrders failed', e)
       }

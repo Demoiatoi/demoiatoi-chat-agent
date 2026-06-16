@@ -47,6 +47,11 @@ const STYLES = `
 .sound-toggle:hover{background:rgba(255,255,255,.32)}
 .dmat-close-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:var(--white);font-size:16px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;line-height:1}
 .dmat-close-btn:hover{background:rgba(255,255,255,.32)}
+.dmat-expand-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:var(--white);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;line-height:1}
+.dmat-expand-btn:hover{background:rgba(255,255,255,.32)}
+/* MODO EXPANDIDO */
+.chat-widget.dmat-expanded{max-width:min(780px,calc(100vw - 40px));width:calc(100vw - 40px);height:calc(100vh - 40px);bottom:20px;top:20px;transition:all .25s ease}
+@media (max-width:480px){.chat-widget.dmat-expanded{width:calc(100vw - 24px);height:calc(100vh - 90px);right:12px;bottom:80px;top:auto}}
 .messages-area{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
 .messages-area::-webkit-scrollbar{width:4px}
 .messages-area::-webkit-scrollbar-thumb{background:var(--rose-light);border-radius:4px}
@@ -248,6 +253,7 @@ const HTML = `
       <span>Aquí para ayudarte a encontrar el regalo perfecto ✨</span>
     </div>
     <button class="sound-toggle" id="soundToggle" title="Silenciar/activar sonido de notificaciones">🔊</button>
+    <button class="dmat-expand-btn" id="dmatExpandBtn" title="Ampliar chat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
     <button class="dmat-close-btn" id="dmatCloseBtn" title="Cerrar chat">✕</button>
     <div class="header-badge">En línea</div>
   </div>
@@ -1458,6 +1464,15 @@ function closeWidget() {
 $('dmatFab').addEventListener('click', openWidget);
 $('dmatCloseBtn').addEventListener('click', closeWidget);
 $('soundToggle').addEventListener('click', toggleSound);
+const _expandIconExpand = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
+const _expandIconCollapse = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>'
+$('dmatExpandBtn').addEventListener('click', () => {
+  const widget = $('chatWidget')
+  const expanded = widget.classList.toggle('dmat-expanded')
+  $('dmatExpandBtn').innerHTML = expanded ? _expandIconCollapse : _expandIconExpand
+  $('dmatExpandBtn').title = expanded ? 'Reducir chat' : 'Ampliar chat'
+  setTimeout(() => { const a = $('messagesArea'); if(a) a.scrollTop = a.scrollHeight }, 60)
+});
 
 $('emailInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') goToStep2(); });
 $('gateStep1Submit').addEventListener('click', goToStep2);
