@@ -522,6 +522,18 @@ ${suggestion_text}`
         role: 'user',
         content: lastUserText
       })
+
+      // Si Andrea está activa en esta conversación, solo guardamos el mensaje del
+      // cliente (para que Andrea lo vea en el panel) pero NO generamos respuesta de Elena.
+      const { data: convCheck } = await supabase
+        .from('chat_conversations')
+        .select('status')
+        .eq('id', convId)
+        .single()
+
+      if (convCheck?.status === 'andrea_active') {
+        return res.status(200).json({ conversation_id: convId, andrea_active: true })
+      }
     }
 
     // Load private knowledge to inject
@@ -590,6 +602,18 @@ ${suggestion_text}`
     })
     const data = await response.json()
     let assistantText = data.content?.[0]?.text || ''
+
+    // Re-check: Andrea may have taken over while Anthropic was generating
+    if (convId) {
+      const { data: reCheck } = await supabase
+        .from('chat_conversations')
+        .select('status')
+        .eq('id', convId)
+        .single()
+      if (reCheck?.status === 'andrea_active') {
+        return res.status(200).json({ conversation_id: convId, andrea_active: true })
+      }
+    }
 
     // ── DETECTAR DUDA, FUERA DE HORARIO, INCIDENCIA, SOLICITUD DE PRESUPUESTO O AVISO A ANDREA ──
     const hasDoubt = detectsDoubt(assistantText)

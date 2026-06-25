@@ -413,7 +413,7 @@ async function checkAndreaMessages() {
       _andreaActive = true
       _andreaWaitActive = false
       _andreaWaitCount = 0
-      startWaitingMessages()
+      stopWaitingMessages()
     }
 
     // Detectar si Elena retoma
@@ -439,12 +439,15 @@ async function checkAndreaMessages() {
         } else if (last.is_from_andrea) {
           renderAndreaBubble(last.content)
           _lastActivityTime = Date.now()
-        } else if (!window._awaitingReply) {
+        } else if (!window._awaitingReply && !last.is_suggestion_private) {
           // Respuesta de Elena tras sugerencia — mostrar si es nuevo.
           // Si el cliente está esperando su propia respuesta, no la dupliques aquí:
           // callAPI la mostrará en cuanto termine (ver _awaitingReply).
-          renderBubble('agent', last.content)
-          _lastActivityTime = Date.now()
+          // Si Andrea está activa, marcamos el mensaje como visto pero no lo mostramos.
+          if (!_andreaActive) {
+            renderBubble('agent', last.content)
+            _lastActivityTime = Date.now()
+          }
         }
       }
     }
@@ -1126,6 +1129,10 @@ async function callAPI(userMsg) {
       sessionStorage.setItem('dmat_conv_id', window._convId);
       document.cookie = `dmat_conv=${window._convId};max-age=86400;path=/`;
     }
+    // Si Andrea está gestionando la conversación, no hay respuesta de Elena
+    if (data.andrea_active) {
+      return null
+    }
     // Esta respuesta ya se va a mostrar aquí mismo: que el polling no la repita
     if (data.message_id) window._lastAndreaId = data.message_id;
     // ¿Elena le ha dicho al cliente que va a avisar a Andrea? Activar la espera con mensajes de calma
@@ -1167,8 +1174,8 @@ async function sendUserMessage(text) {
     const reply = await callAPI(content);
     removeTyping();
     _lastActivityTime = Date.now();
-    // Si Andrea está activa, no mostrar respuesta de Elena
-    if (!_andreaActive) renderBubble("agent", reply);
+    // Si Andrea está activa o no hay respuesta (andrea_active en server), no mostrar respuesta de Elena
+    if (reply && !_andreaActive) renderBubble("agent", reply);
     // Elena ha avisado a Andrea: empezar a esperar con mensajes de calma
     if (window._lastAndreaHandoff) startAndreaWaitFlow();
   } catch(e) {
